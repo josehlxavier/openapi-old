@@ -167,7 +167,7 @@ paths:
     post:
       tags:
         - Recurring Consents
-      summary: cria da favela
+      summary: Açaí com farinha
       operationId: automaticPaymentsPostRecurringConsents
       description: Método para criação de consentimento de longa duração. Retorna um `recurringConsentId` no status AWAITING_AUTHORISATION.
       parameters:
