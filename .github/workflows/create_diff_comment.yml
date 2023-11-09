@@ -18,7 +18,12 @@ jobs:
         with:
           base: './swagger-apis/automatic-payments/1.0.0-beta.1.yml'
           revision: './swagger-apis/automatic-payments/1.0.0-beta.2.yml'
-          
+  create_diff_comment:
+    runs-on: ubuntu-latest
+    needs: list_diff
+    steps:
+     - name: Criação da string de comentário
+       run: echo ${{ steps.job1.outputs.diff.* }}
   comment_diff:
     runs-on: ubuntu-latest
     needs: list_diff
@@ -29,5 +34,5 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.OASDIFF_TOKEN }}       
        with:
          message: |
-           ${{ steps.job1.outputs.diff.test }}
+           ${{ steps.job1.outputs.diff }}
 
