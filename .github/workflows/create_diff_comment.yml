@@ -17,14 +17,6 @@ jobs:
         revision: api-docs.json
         fail-on-diff: 'false'
 
-    - name: Find Comment
-      uses: peter-evans/find-comment@v2
-      id: find-comment
-      with:
-        issue-number: ${{ github.event.pull_request.number }}
-        comment-author: 'github-actions[bot]'
-        body-includes: bot:oasdiff
-
     - name: Post oasdiff report
       if: ${{ steps.oasdiff.outputs.diff}}
       uses: peter-evans/create-or-update-comment@v3
