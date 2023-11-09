@@ -7,7 +7,7 @@ jobs:
   list_diff:
     runs-on: ubuntu-latest
     outputs:
-      output1: ${{ steps.job1.outputs }}
+      diff: ${{ steps.job1.outputs.test }}
     steps:
       - uses: actions/checkout@v3
       - name: Realizar o diff entre arquivos
@@ -29,5 +29,5 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.OASDIFF_TOKEN }}       
        with:
          message: |
-           ${{ steps.job1.outputs.output1 }}
+           ${{ steps.job1.outputs.diff.* }}
 
