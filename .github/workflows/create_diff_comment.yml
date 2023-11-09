@@ -7,7 +7,7 @@ jobs:
   list_diff:
     runs-on: ubuntu-latest
     outputs:
-      diff: ${{ steps.job1.outputs.test }}
+      diff: ${{ steps.job1.outputs }}
     steps:
       - uses: actions/checkout@v3
       - name: Realizar o diff entre arquivos
@@ -18,12 +18,6 @@ jobs:
         with:
           base: './swagger-apis/automatic-payments/1.0.0-beta.1.yml'
           revision: './swagger-apis/automatic-payments/1.0.0-beta.2.yml'
-  create_diff_comment:
-    runs-on: ubuntu-latest
-    needs: list_diff
-    steps:
-     - name: Criação da string de comentário
-       run: echo ${{ steps.job1.outputs.diff.* }}
   comment_diff:
     runs-on: ubuntu-latest
     needs: list_diff
@@ -34,5 +28,5 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.OASDIFF_TOKEN }}       
        with:
          message: |
-           ${{ steps.job1.outputs.diff }}
+           ${{ needs.job1.outputs.diff }}
 
