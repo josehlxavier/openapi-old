@@ -30,5 +30,3 @@ jobs:
           ```
           ${{ steps.oasdiff.outputs.diff }}
           ```
-        edit-mode: create
-
