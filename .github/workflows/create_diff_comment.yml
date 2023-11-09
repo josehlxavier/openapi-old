@@ -1,7 +1,6 @@
 name: Comentar no PR o diff das specs
 on: 
-  pull_request:
-    types: [opened]
+  push:
     branches:
       - "main"
 jobs:
