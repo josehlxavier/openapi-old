@@ -9,6 +9,7 @@ jobs:
     outputs:
       diff: ${{ steps.job1.outputs.test }}
     steps:
+    - uses: actions/checkout@v3
     - name: Running OpenAPI Spec diff action
       id: oasdiff
       uses: oasdiff/oasdiff-action/diff@main
