@@ -6,8 +6,6 @@ on:
 jobs:
   list_diff:
     runs-on: ubuntu-latest
-    outputs:
-      diff: ${{ steps.job1.outputs.test }}
     steps:
     - uses: actions/checkout@v3
     - name: Running OpenAPI Spec diff action
@@ -20,7 +18,6 @@ jobs:
         revision: './swagger-apis/automatic-payments/1.0.0-beta.2.yml'
 
     - name: Post oasdiff report
-      if: ${{ steps.oasdiff.outputs.diff}}
       uses: peter-evans/create-or-update-comment@v3
       env:
         GITHUB_TOKEN: ${{ secrets.OASDIFF_TOKEN }}
