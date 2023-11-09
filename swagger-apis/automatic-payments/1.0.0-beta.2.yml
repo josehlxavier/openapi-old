@@ -167,7 +167,7 @@ paths:
     post:
       tags:
         - Recurring Consents
-      summary: Cria um consentimento para transações de pagamentos.
+      summary: cria da favela
       operationId: automaticPaymentsPostRecurringConsents
       description: Método para criação de consentimento de longa duração. Retorna um `recurringConsentId` no status AWAITING_AUTHORISATION.
       parameters:
