@@ -29,5 +29,5 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.OASDIFF_TOKEN }}       
        with:
          message: |
-           ${{ steps.job1.outputs.diff.* }}
+           ${{ steps.job1.outputs.diff.test }}
 
