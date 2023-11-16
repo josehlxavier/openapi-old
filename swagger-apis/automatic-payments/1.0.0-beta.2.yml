@@ -159,9 +159,9 @@ servers:
     description: Servidor de Homologação
 tags:
   - name: Recurring Consents
-    description: Métodos para criação e gestão de consentimento
+    description: Métodos 
   - name: Recurring Payments
-    description: Métodos para criação e gestão de pagamentos
+    description: Métodos 
 paths:
   /recurring-consents:
     post:
@@ -205,8 +205,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '504':
           $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
-        '529':
-          $ref: '#/components/responses/SiteIsOverloaded'
         default:
           description: Erro inesperado.
           content:
