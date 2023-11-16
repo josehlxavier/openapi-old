@@ -167,7 +167,7 @@ paths:
     post:
       tags:
         - Recurring Consents
-      summary: cria da favela
+      summary: mais_uma_chance
       operationId: automaticPaymentsPostRecurringConsents
       description: Método para criação de consentimento de longa duração. Retorna um `recurringConsentId` no status AWAITING_AUTHORISATION.
       parameters:
@@ -2443,7 +2443,6 @@ components:
           type: object
           description: Objeto contendo as informações de consentimento para a iniciação de pagamento individual.
           required:
-            - recurringConsentId
             - statusUpdateDateTime
             - loggedUser
             - businessEntity
@@ -2451,7 +2450,6 @@ components:
             - creditors
             - startDateTime
             - creationDateTime
-            - expirationDateTime
             - recurringConfiguration
           properties:
             recurringConsentId:
@@ -2518,6 +2516,7 @@ components:
                 - revokedBy
                 - revokedFrom
                 - revokedAt
+                - reason
               properties:
                 revokedBy:
                     type: string
@@ -2734,7 +2733,6 @@ components:
       type: object
       required:
         - recurringPaymentId
-        - recurringConsentId
         - endToEndId
         - date
         - creationDateTime
