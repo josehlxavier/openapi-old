@@ -4,30 +4,74 @@ on:
     branches:
       - "main"
 jobs:
-  list_diff:
+ # list_diff:
+  #  runs-on: ubuntu-latest
+  #  steps:
+   # - uses: actions/checkout@v3
+   # - name: Running OpenAPI Spec breaking action
+   #   id: oasdiff
+    #  uses: oasdiff/oasdiff-action/breaking@main
+     # env:
+      #  GITHUB_TOKEN: ${{ secrets.OASDIFF_TOKEN }}
+     # with:
+     #   base: './swagger-apis/automatic-payments/1.0.0-beta.1.yml'
+      #  revision: './swagger-apis/automatic-payments/1.0.0-beta.2.yml'
+  oas_diff_job:
     runs-on: ubuntu-latest
-    outputs:
-      diff: ${{ steps.job1.outputs.test }}
+    name: A job to test OpenAPI Spec diff action
     steps:
-      - uses: actions/checkout@v3
-      - name: Realizar o diff entre arquivos
-        id: job1
-        uses: oasdiff/oasdiff-action/diff@main
+        - name: checkout
+          uses: actions/checkout@v3
+        - name: Running OpenAPI Spec diff action
+          id: test_ete
+          uses: oasdiff/oasdiff-action/diff@main
+          env:
+            GITHUB_TOKEN: ${{ secrets.OASDIFF_TOKEN }}
+          with:
+            base: './swagger-apis/automatic-payments/1.0.0-beta.1.yml'
+            revision: './swagger-apis/automatic-payments/1.0.0-beta.2.yml'
+            format: 'text'
+  oas_diff_breaking_changes_job:
+    runs-on: ubuntu-latest
+    name: A job to test OpenAPI Spec breaking changes
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+      - name: Running OpenAPI Spec check breaking action
+        id: test_breaking_changes
+        uses: oasdiff/oasdiff-action/breaking@test_output
         env:
           GITHUB_TOKEN: ${{ secrets.OASDIFF_TOKEN }}
         with:
-          base: './swagger-apis/automatic-payments/1.0.0-beta.1.yml'
-          revision: './swagger-apis/automatic-payments/1.0.0-beta.2.yml'
-          
-  comment_diff:
+          base: ./swagger-apis/automatic-payments/1.0.0-beta.1.yml
+          revision: ./swagger-apis/automatic-payments/1.0.0-beta.2.yml
+          fail-on-diff: false
+  oas_diff_changelog_tag_job:
     runs-on: ubuntu-latest
-    needs: list_diff
+    name: A job to test tag release of OpenAPI Spec changelog action
     steps:
-     - name: Criar o comentário no PR
-       uses: mshick/add-pr-comment@v2
-       env:
-        GITHUB_TOKEN: ${{ secrets.OASDIFF_TOKEN }}       
-       with:
-         message: |
-           ${{ steps.job1.outputs.diff.* }}
+      - name: checkout
+        uses: actions/checkout@v3
+      - name: Running OpenAPI Spec changelog tag action
+        id: test_changelog
+        uses: oasdiff/oasdiff-action/changelog@v0.0.10
+        env:
+          GITHUB_TOKEN: ${{ secrets.OASDIFF_TOKEN }}
+        with:
+          base: ./swagger-apis/automatic-payments/1.0.0-beta.1.yml
+          revision: ./swagger-apis/automatic-payments/1.0.0-beta.1.yml
 
+
+   # - name: Post oasdiff report
+   #  uses: peter-evans/create-or-update-comment@v3
+    #  env:
+     #   GITHUB_TOKEN: ${{ secrets.OASDIFF_TOKEN }}
+      #with:
+       # issue-number: ${{ github.event.pull_request.number }}
+        #body: |
+         # <!-- bot:oasdiff -->
+          #Found these breaking changes on the public API:
+
+          #```
+         # ${{ steps.oasdiff.outputs.diff }}
+         # ```

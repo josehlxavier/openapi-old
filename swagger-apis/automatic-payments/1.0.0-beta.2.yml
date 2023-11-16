@@ -203,10 +203,6 @@ paths:
           $ref: '#/components/responses/UnprocessableConsents'
         '500':
           $ref: '#/components/responses/InternalServerError'
-        '504':
-          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
-        '529':
-          $ref: '#/components/responses/SiteIsOverloaded'
         default:
           description: Erro inesperado.
           content:
