@@ -159,9 +159,9 @@ servers:
     description: Servidor de Homologação
 tags:
   - name: Recurring Consents
-    description: Métodos 
+    description: Apaguei
   - name: Recurring Payments
-    description: Métodos
+    description: Apaguei
 paths:
   /recurring-consents:
     post:
