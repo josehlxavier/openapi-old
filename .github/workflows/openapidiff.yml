@@ -13,22 +13,17 @@ jobs:
           echo ${{ github.repository }}
           echo ${{ github.ref_name }}
 
-      - name: Get changed files
-        id: changed-files
-        uses: tj-actions/changed-files@v40
-        with:
-            files: |
-                *.yml
-                *.yaml
-  
-      - name: List all added files
-        run: |
-            for file in ${{ steps.changed-files.outputs.added_files }}; do
-                echo "$file was added"
-            done
       - name: Running OpenAPI Spec diff action
-        uses: oasdiff/oasdiff-action/diff@main
+        uses: oasdiff/oasdiff-action/breaking@main
+        id: breaking
         with:
             base: 'swagger-apis/payments/4.0.0-beta.6.yml'
             revision: 'swagger-apis/payments/4.0.0-beta.7.yml'
             format: text
+            fail-on-diff: false
+
+      - name: Comment on PR
+        uses: mshick/add-pr-comment@v2
+        with:
+          message: |
+            ${{ steps.breaking.outputs.breaking }}
