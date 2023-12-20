@@ -29,6 +29,5 @@ jobs:
       - name: Running OpenAPI Spec diff action
         uses: oasdiff/oasdiff-action/diff@main
         with:
-            base: 'swagger-apis/payments/4.0.0-beta.4.yml'
-            revision: 'swagger-apis/payments/4.0.0-beta.5.yml'
-      
+            base: 'swagger-apis/payments/4.0.0-beta.5.yml'
+            revision: 'swagger-apis/payments/4.0.0-beta.6.yml'
