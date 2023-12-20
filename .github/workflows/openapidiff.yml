@@ -17,8 +17,8 @@ jobs:
         uses: oasdiff/oasdiff-action/breaking@main
         id: breaking
         with:
-            base: 'swagger-apis/payments/4.0.0-beta.6.yml'
-            revision: 'swagger-apis/payments/4.0.0-beta.7.yml'
+            base: 'swagger-apis/payments/4.0.0-beta.7.yml'
+            revision: 'swagger-apis/payments/4.0.0-beta.8.yml'
             format: text
             fail-on-diff: false
 
