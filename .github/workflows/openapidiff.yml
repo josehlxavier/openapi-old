@@ -14,11 +14,11 @@ jobs:
           echo ${{ github.ref_name }}
 
       - name: Running OpenAPI Spec diff action
-        uses: oasdiff/oasdiff-action/breaking@main
+        uses: oasdiff/oasdiff-action/diff@main
         id: breaking
         with:
-            base: 'swagger-apis/payments/4.0.0-beta.7.yml'
-            revision: 'swagger-apis/payments/4.0.0-beta.8.yml'
+            base: 'swagger-apis/payments/4.0.0-beta.8.yml'
+            revision: 'swagger-apis/payments/4.0.0-beta.9.yml'
             format: text
             fail-on-diff: false
 
