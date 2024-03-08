@@ -547,7 +547,6 @@ components:
                 enum:
                   - DATA_PAGAMENTO_INVALIDA
                   - DETALHE_PAGAMENTO_INVALIDO
-                  - PARAMETRO_NAO_INFORMADO
                   - PARAMETRO_INVALIDO
                   - ERRO_IDEMPOTENCIA
                   - NAO_INFORMADO
