@@ -43,9 +43,9 @@ servers:
     description: Servidor de Homologação
 tags:
   - name: Consents
-    description: Métodos para criação e gestão de consentimento
-  - name: Recurring Payments
-    description: Métodos para criação e gestão de pagamentos
+    description: Métodos para criação e gestão de consentimentos
+  - name: Batch Payments
+    description: Métodos para criação e gestão de pagamentos em lote
 paths:
   /batch-consents:
     post:
@@ -101,6 +101,59 @@ paths:
         - OAuth2ClientCredentials:
             - recurringPayments
   '/batch-consents/{consentId}':
+    patch: 
+      tags:
+        - Consents
+      summary: Cria um consentimento para transações de pagamentos em lote.
+      operationId: batchPaymentPatchBatchConsentCreditors
+      description: Método para criação de consentimento. Retorna um `consentId` no status AWAITING_CREDITORS.
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/xCustomerUserAgent'
+        - $ref: '#/components/parameters/xFapiAuthDate'
+        - $ref: '#/components/parameters/xFapiCustomerIpAddress'
+        - $ref: '#/components/parameters/xFapiInteractionId'
+        - $ref: '#/components/parameters/XIdempotencyKey'
+        - $ref: '#/components/parameters/pathConsentId'
+      requestBody:
+        content:
+          application/jwt:
+            schema:
+              $ref: '#/components/schemas/CreateConsent'
+        description: Payload para criação do consentimento para iniciação do pagamento.
+        required: true
+      responses:
+        '201':
+          $ref: '#/components/responses/RecurringConsentsPost'
+        '400':
+          $ref: '#/components/responses/BadRequestPaymentsConsents'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '422':
+          $ref: '#/components/responses/UnprocessableConsents'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
+        '529':
+          $ref: '#/components/responses/SiteIsOverloaded'
+        default:
+          description: Erro inesperado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      security:
+        - OAuth2ClientCredentials:
+            - recurringPayments      
     get:
       tags:
         - Consents
@@ -148,7 +201,7 @@ paths:
     post: 
       tags:
         - Consents
-      summary: Adicionar recebedores
+      summary: Adicionar recebedores a um consentimento
       operationId: batchPaymentsPostConsentCreditors
       description: Método adicionar recebedores para um determinado consentimento
       parameters:
@@ -164,7 +217,7 @@ paths:
           application/jwt:
             schema:
               $ref: '#/components/schemas/PostBatchConsentsCreditorRequest'
-        description: Payload para criação do consentimento para iniciação do pagamento.
+        description: Payload para criação do consentimento para iniciação do pagamento em lote.
         required: true
       responses:
         '201':
@@ -244,11 +297,63 @@ paths:
       security:
         - OAuth2ClientCredentials:
             - recurringPayments       
-      
-  /pix/recurring-payments:
+    patch: 
+      tags:
+        - Consents
+      summary: Remover recebedores de um consentimento
+      operationId: batchPaymentsPatchConsentCreditors
+      description: Método adicionar recebedores para um determinado consentimento
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/xCustomerUserAgent'
+        - $ref: '#/components/parameters/xFapiAuthDate'
+        - $ref: '#/components/parameters/xFapiCustomerIpAddress'
+        - $ref: '#/components/parameters/xFapiInteractionId'
+        - $ref: '#/components/parameters/pathConsentId'
+        - $ref: '#/components/parameters/XIdempotencyKey'
+      requestBody:
+        content:
+          application/jwt:
+            schema:
+              $ref: '#/components/schemas/PostBatchConsentsCreditorRequest'
+        description: Payload para criação do consentimento para iniciação do pagamento.
+        required: true
+      responses:
+        '201':
+          $ref: '#/components/responses/201PostBatchConsentCreditor'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntityRecurringConsents'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
+        '529':
+          $ref: '#/components/responses/SiteIsOverloaded'
+        default:
+          description: Erro inesperado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      security:
+        - OAuth2ClientCredentials:
+            - recurringPayments
+  /pix/batch-payments:
     post:
       tags:
-        - Recurring Payments
+        - Batch Payments
       summary: Cria uma transação de pagamento.
       operationId: automaticPaymentsPostPixRecurringPayments
       description: Método para criação de uma transação de pagamento. Retorna um recurringPaymentId.
@@ -307,7 +412,7 @@ paths:
             - nrp-consents
     get:
       tags:
-        - Recurring Payments
+        - Batch Payments
       summary: Busca informações de transações de pagamentos associadas a um consentimento.
       operationId: automaticPaymentsGetPixRecurringPayments
       description: |
@@ -352,11 +457,10 @@ paths:
       security:
         - OAuth2ClientCredentials:
             - recurringPayments
-  '/pix/recurring-payments/{recurringPaymentId}':
-    get:
+    patch:
       tags:
-        - Recurring Payments
-      summary: Busca informações de uma transação de pagamento.
+        - Batch Payments
+      summary: Cancela uma ou mais solicitações de pagamento em lote.
       operationId: automaticPaymentsGetPixRecurringPaymentsPaymentId
       description: Método para buscar informações sobre um pagamento.
       parameters:
@@ -365,7 +469,7 @@ paths:
         - $ref: '#/components/parameters/xFapiAuthDate'
         - $ref: '#/components/parameters/xFapiCustomerIpAddress'
         - $ref: '#/components/parameters/xFapiInteractionId'
-        - $ref: '#/components/parameters/pathRecurringPaymentId'
+        - $ref: '#/components/parameters/pathBatchPaymentId'
       responses:
         '200':
           $ref: '#/components/responses/200RecurringPaymentsIdRead'
@@ -385,70 +489,6 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '504':
           $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
-        '529':
-          $ref: '#/components/responses/SiteIsOverloaded'
-        default:
-          description: Erro inesperado.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResponseError'
-      security:
-        - OAuth2ClientCredentials:
-            - recurringPayments
-    patch:
-      tags:
-        - Recurring Payments
-      summary: Atualização do Pagamento Recorrente.
-      operationId: automaticPaymentsPatchPixRecurringPaymentsPaymentId
-      description: |
-        Esse endpoint deve ser usado para cancelar as transações que estejam em uma das seguintes situações: 
-        Agendada com sucesso (SCHD), retida para análise (PDNG). Caso a requisição seja bem sucedida, a transação vai para a situação CANC. 
-        
-        Caso o status do pagamento seja diferente de SCHD/PDNG ou alguma outra regra de negócio impeça o cancelamento, a requisição PATCH retorna 
-        HTTP Status 422 com o code PAGAMENTO_NAO_PERMITE_CANCELAMENTO. 
-        
-        Caso receba um 422, a iniciadora deve fazer uma requisição GET no pagamento para verificar a situação atual dele, bem como detalhes associados. 
-
-        [Restrição] Para o Pix Automático (“recurringConfiguration” igual a “automatic”) tanto o recebedor quanto o pagador poderão realizar o 
-        cancelamento, sendo permitido ao recebedor a solicitação de cancelamento até as 22:00 (Horário de Brasília) e ao pagador até as 23:59 
-        (Horário de Brasília) do dia anterior à data de efetivação do pagamento.
-      parameters:
-        - $ref: '#/components/parameters/Authorization'
-        - $ref: '#/components/parameters/xCustomerUserAgent'
-        - $ref: '#/components/parameters/xFapiAuthDate'
-        - $ref: '#/components/parameters/xFapiCustomerIpAddress'
-        - $ref: '#/components/parameters/xFapiInteractionId'
-        - $ref: '#/components/parameters/pathRecurringPaymentId'
-        - $ref: '#/components/parameters/XIdempotencyKey'
-      requestBody:
-        content:
-          application/jwt:
-            schema:
-              $ref: '#/components/schemas/PatchPixPayment'
-        description: Atualização do Pagamento Recorrente.
-        required: true
-      responses:
-        '200':
-          $ref: '#/components/responses/200RecurringPaymentsIdRead'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '405':
-          $ref: '#/components/responses/MethodNotAllowed'
-        '406':
-          $ref: '#/components/responses/NotAcceptable'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntityRecurringPaymentsPaymentId'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-        '504':
-          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'        
         '529':
           $ref: '#/components/responses/SiteIsOverloaded'
         default:
@@ -739,7 +779,7 @@ components:
                 - "totalCreditors"
                 - "totalAmount"
               properties: 
-                type: 
+                "type": 
                   type: "string"
                   example: "CONSOLIDATED|INDIVIDUAL"
                 totalCreditors: 
@@ -2322,9 +2362,9 @@ components:
         pattern: '^urn:[a-zA-Z0-9][a-zA-Z0-9\-]{0,31}:[a-zA-Z0-9()+,\-.:=@;$_!*''%\/?#]+$'
         minLength: 1
         maxLength: 256
-    pathRecurringPaymentId:
-      name: recurringPaymentId
-      in: path
+    pathBatchPaymentId:
+      name: batchPaymentId
+      in: query
       description: Identificador da operação de pagamento.
       required: true
       schema:
