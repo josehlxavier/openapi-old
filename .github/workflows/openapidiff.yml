@@ -20,9 +20,3 @@ jobs:
             revision: 'swagger-apis/automatic-payments/1.0.0-beta.6.yml'
             format: text
             fail-on-diff: false
-
-      - name: Comment on PR
-        uses: mshick/add-pr-comment@v2
-        with:
-          message: |
-            ${{ steps.breaking.outputs.breaking }}
