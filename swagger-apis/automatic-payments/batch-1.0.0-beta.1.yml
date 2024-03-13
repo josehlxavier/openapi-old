@@ -216,12 +216,12 @@ paths:
         content:
           application/jwt:
             schema:
-              $ref: '#/components/schemas/PostBatchConsentsCreditorRequest'
+              $ref: '#/components/schemas/BatchConsentsCreditorRequest'
         description: Payload para criação do consentimento para iniciação do pagamento em lote.
         required: true
       responses:
         '201':
-          $ref: '#/components/responses/201PostBatchConsentCreditor'
+          $ref: '#/components/responses/ResponseConsentCreditor'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -265,9 +265,27 @@ paths:
         - $ref: '#/components/parameters/xFapiInteractionId'
         - $ref: '#/components/parameters/pathConsentId'
         - $ref: '#/components/parameters/XIdempotencyKey'
+        - name: page-size
+          in: query
+          description: Quantidade de items que devem ser retornados em uma página
+          schema: 
+            type: integer
+            example: 100
+        - name: page
+          in: query
+          description: Número da página que está sendo requisitada (o valor da primeira página é 1).
+          schema: 
+            type: integer
+            example: 25
+        - name: pagination-key
+          in: query
+          description: Identificador de rechamada, utilizado para evitar a contagem de chamadas ao endpoint durante a paginação.
+          schema: 
+            type: string
+            format: UUID
       responses:
         '200':
-          $ref: '#/components/responses/201PostBatchConsentCreditor'
+          $ref: '#/components/responses/ResponseConsentCreditor'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -667,11 +685,15 @@ components:
               type: "string"
               example: "11111111111"
             businessEntityId:
+              maxLength: 14
+              pattern: ^\d{14}$
               description: "CPNJ do Usuário (pessoa jurídica) que encontra-se logado na instituição Iniciadora de Pagamento. [Restrição] Preenchimento obrigatório se usuário logado na instituição Iniciadora de Pagamento for um CNPJ (pessoa jurídica)"
               type: "string"
               example: "11111111111111"
             additionalInformation: 
               type: "string"
+              pattern: '[\w\W\s]*'
+              maxLength: 140
               example: "Folha de Pagamento de Novembro"
               description: "Deve ser preenchido sempre que o usuário pagador inserir alguma informação adicional no consentimento"
             paymentConfiguration: 
@@ -688,9 +710,10 @@ components:
                     - SCHEDULED
                 date: 
                   type: "string"
-                  example: "2021-05-21"
+                  format: "date-time"
+                  example: "2021-05-21T08:30:00Z"
                   description: | 
-                    "Data de realização da liquidação. 
+                    "Data e hora (em formato UTC) para realização da liquidação. 
                     [Restrição] Caso valor do campo '/data/paymentConfiguration/type' diferente de "IMMEDIATED", 
                     a data deve sempre ser D+1, onde D é o dia atual da requisição."
               type: "object"
@@ -702,15 +725,18 @@ components:
               properties: 
                 type: 
                   type: "string"
-                  example: "CONSOLIDATED|INDIVIDUAL"
+                  example: "CONSOLIDATED"
                   description: "Indica a maneira de visualização das informações transacionais no extrato do cliente pagador"
+                  enum: 
+                   - CONSOLIDATED
+                   - INDIVIDUAL
                 totalCreditors: 
                   type: "integer"
                   example: 200
                   description: "Quantidade de recebedores que será enviado pelo iniciador de pagamentos"
                 totalAmount: 
                   type: "integer"
-                  example: 50000.00
+                  example: 50000
                   description: |
                     "Valor total da soma de todos os valores que serão 
                     enviados para os recebedores informados pelo inciador de pagamentos" 
@@ -1533,7 +1559,7 @@ components:
               maxLength: 20
               format: date-time
               example: '2021-05-21T08:30:00Z'
-    ResponsePostBatchConsentCreditors:
+    ResponseBatchConsentCreditors:
       required: 
         - "data"
         - "links"
@@ -1541,27 +1567,53 @@ components:
       properties: 
         data: 
           type: "array"
+          maxItems: 100
           items: 
             type: "object"
-            required:
-              - "creditorId"
-              - "personType"
-              - "cpfCnpj"
-              - "name"
-              - "payment"
+            required: 
+              -  creditorId
+              - personType
+              - cpfCnpj
+              - name
+              - payment
             properties: 
               creditorId: 
                 type: "string"
+                format: "uuid"
                 example: "61709a24-be94-4401-88cb-e457cbe13808"
+                description: | 
+                  Identificador único do usuário recebedor. Será utilizado no pagamento para
+                  informar quais os parâmetros de pagamento relacionados a cada ordem de um lote"
               personType: 
                 type: "string"
                 example: "PESSOA_JURIDICA"
+                enum: 
+                 - PESSOA_NATURAL
+                 - PESSOA_JURIDICA
+                description: "Tipo de titular, pessoa natural ou juridica a quem se referem os dados de recebedor (creditor)."
               cpfCnpj: 
                 type: "string"
+                minLength: 11
+                maxLength: 14
+                pattern: ^\d{11}$|^\d{14}$
                 example: "58764789000137"
+                description: |
+                  Identificação da pessoa envolvida na transação.
+                  Preencher com o CPF ou CNPJ, de acordo com o valor escolhido no campo type.
+                  O CPF será utilizado com 11 números e deverá ser informado sem pontos ou traços.
+                  O CNPJ será utilizado com 14 números e deverá ser informado sem pontos ou traços.
               name: 
                 type: "string"
-                example: "Marco Antonio de Brito"
+                pattern: ^([A-Za-zÀ-ÖØ-öø-ÿ,.@:&*+_<>()!?/\\$%\d' -]+)$
+                maxLength: 120
+                example: Marco Antonio de Brito
+                description: |
+                  Em caso de pessoa natural deve ser informado o nome completo do titular da conta do recebedor.
+                  Em caso de pessoa jurídica deve ser informada a razão social ou o nome fantasia da conta do recebedor.
+              listed: 
+                type: "boolean"
+                example: true
+                description: "Indica se o recebedor deve ser listado no extrato do cliente pagador"
               payment: 
                 required: 
                   - "type"
@@ -1572,16 +1624,40 @@ components:
                   type: 
                     type: "string"
                     example: "PIX"
+                    description: "Este campo define o tipo de pagamento que será iniciado após a autorização do consentimento."
+                    enum: 
+                     - PIX
                   localInstrument: 
                     type: "string"
-                    example: "MANU|DICT|INIC|QRDN"
+                    example: "QRDN"
+                    enum:
+                     - MANU
+                     - DICT
+                     - INIC
+                     - QRDN
+                    description: |
+                     Especifica a forma de iniciação do pagamento:
+                      * MANU - Inserção manual de dados da conta transacional
+                      * DICT - Inserção manual de chave Pix
+                      * QRDN - QR code dinâmico
+                      * INIC - Indica que o recebedor (creditor) contratou o Iniciador de Pagamentos especificamente para realizar iniciações de pagamento em que o beneficiário é previamente conhecido.
                   currency: 
                     type: "string"
-                    example: "BRL"
+                    maxLength: 3
+                    pattern: ^([A-Z]{3})$
+                    example: BRL
+                    description: |
+                      Código da moeda nacional segundo modelo ISO-4217, ou seja, 'BRL'. 
+                      Todos os valores monetários informados estão representados com a moeda vigente do Brasil.
                   amount: 
                     type: "string"
                     example: "100000.12"
+                    minLength: 4
+                    maxLength: 19
+                    pattern: ^((\d{1,16}\.\d{2}))$
+                    description: Valor da transação com 2 casas decimais.
                   creditorAccount: 
+                    description: Objeto que contém a identificação da conta de destino do beneficiário/recebedor.
                     required: 
                       - "ispb"
                       - "number"
@@ -1589,26 +1665,100 @@ components:
                     properties: 
                       ispb: 
                         type: "string"
+                        minLength: 8
+                        maxLength: 8
+                        pattern: ^[0-9]{8}$
                         example: "12345678"
+                        description: | 
+                          Deve ser preenchido com o ISPB (Identificador do Sistema de Pagamentos Brasileiros) 
+                          do participante do SPI (Sistema de pagamentos instantâneos) somente com números.
                       issuer: 
                         type: "string"
+                        minLength: 1
+                        maxLength: 4
+                        pattern: ^[0-9]{1,4}$
                         example: "1774"
+                        description: | 
+                          Código da Agência emissora da conta sem dígito. (Agência é a dependência destinada 
+                          ao atendimento aos clientes, ao público em geral e aos associados de cooperativas
+                            de crédito, no exercício de atividades da instituição, não podendo ser móvel ou transitória).
+                          [Restrição] Preenchimento obrigatório para os seguintes tipos de conta: 
+                          * CACC (CONTA_DEPOSITO_A_VISTA) 
+                          * SVGS (CONTA_POUPANCA).
                       number: 
                         type: "string"
                         example: "1234567890"
+                        minLength: 1
+                        maxLength: 20
+                        pattern: ^[0-9]{1,20}$
+                        description: |
+                          Deve ser preenchido com o número da conta transacional do usuário pagador, com dígito 
+                          verificador (se este existir), se houver valor alfanumérico, este deve ser convertido para 0.
                       accountType: 
                         type: "string"
                         example: "CACC"
+                        description: |
+                          Tipos de contas usadas para pagamento. Modalidades tradicionais previstas pela Resolução 4.753, não contemplando contas vinculadas, conta de domiciliados no exterior, contas em moedas estrangeiras e conta correspondente moeda eletrônica.
+                          Segue descrição de cada valor do ENUM.
+
+                          * CACC - Current - Conta Corrente.
+                          * SVGS - Savings - Conta de Poupança.
+                          * TRAN - TransactingAccount - Conta de Pagamento pré-paga.
+                        enum: 
+                          - CACC
+                          - SVGS
+                          - TRAN
                     type: "object"
                   proxy: 
+                    maxLength: 77
+                    pattern: '[\w\W\s]*'
+                    example: "12345678901"
                     type: "string"
-                    example: "string"
+                    description: |
+                      Chave cadastrada no DICT pertencente ao recebedor. Os tipos de chaves
+                       podem ser: telefone, e-mail, cpf/cnpj ou chave aleatória. No caso de 
+                       telefone celular deve ser informado no padrão E.1641. Para e-mail deve 
+                       ter o formato xxxxxxxx@xxxxxxx.xxx(.xx) e no máximo 77 caracteres. 
+                       No caso de CPF deverá ser informado com 11 números, sem pontos ou traços. 
+                       Para o caso de CNPJ deverá ser informado com 14 números, sem pontos ou traços. 
+                       No caso de chave aleatória deve ser informado o UUID gerado pelo DICT, 
+                       conforme formato especificado na RFC41223. Se informado, a detentora 
+                       da conta deve validar o proxy no DICT quando localInstrument for igual 
+                       a DICT, QRDN ou QRES e validar o campo creditorAccount. Esta validação 
+                       é opcional caso o localInstrument for igual a INIC. 
+                       [Restrição] Se localInstrument for igual a MANU, o campo proxy não deve ser preenchido. Se localInstrument for igual INIC, DICT ou QRDN, o campo proxy deve ser sempre preenchido com a chave Pix.
                   transactionIdentification: 
                     type: "string"
-                    example: "string"
+                    pattern: ^[a-zA-Z0-9]{1,35}$
+                    maxLength: 35
+                    example: E00038166201907261559y6j6
+                    description: |
+                      Trata-se de um identificador de transação que deve ser retransmitido intacto pelo PSP do pagador ao gerar a ordem de pagamento. Essa informação permitirá ao recebedor identificar e correlacionar a transferência, quando recebida, com a apresentação das instruções ao pagador. Os caracteres permitidos no contexto do Pix para o campo txid (EMV 62-05) são:
+
+                      * Letras minúsculas, de 'a' a 'z'
+                      * Letras maiúsculas, de 'A' a 'z'
+                      * Dígitos decimais, de '0' a '9'
+                      
+                      [Restrição] Preenchimento condicional de acordo com o conteúdo do campo localInstument:
+                      * MANU - O campo transactionIdentification não deve ser preenchido.
+                      * DICT - O campo transactionIdentification não deve ser preenchido.
+                      * INIC - O campo transactionIdentification deve ser preenchido obrigatoriamente e deve conter até 25 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      * QRES - Caso o QR Code estático possua o dado <TxId> preenchido, o campo transactionIdentification deverá ser preenchido com este valor, caso o QR Code não possua o <TxId> o campo transactionIdentification não deverá ser preenchido. O <TxId> deve conter até 25 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      * QRDN - Será obrigatório seu preenchimento com o <TxId> do payload JSON do QR Code dinâmico. O <TxId> deve conter entre 26 e 35 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      A detentora de conta deve validar se a condicionalidade e o formato do campo foram atendidas pela iniciadora de pagamento.
                   qrCode: 
                     type: "string"
-                    example: "string"
+                    maxLength: 512
+                    pattern: '[\w\W\s]*'
+                    example: 00020104141234567890123426660014BR.GOV.BCB.PIX014466756C616E6F32303139406578616D706C652E636F6D27300012 BR.COM.OUTRO011001234567895204000053039865406123.455802BR5915NOMEDORECEBEDOR6008BRASILIA61087007490062 530515RP12345678-201950300017BR.GOV.BCB.BRCODE01051.0.080450014BR.GOV.BCB.PIX0123PADRAO.URL.PIX/0123AB CD81390012BR.COM.OUTRO01190123.ABCD.3456.WXYZ6304EB76
+                    description: | 
+                     Sequência de caracteres que corresponde ao QR Code disponibilizado para o pagador. 
+                     É a sequência de caracteres que seria lida pelo leitor de QR Code, 
+                     e deve propiciar o retorno dos dados do pagador após consulta na DICT. 
+                     Essa funcionalidade é possível tanto para QR Code estático quanto para QR Code dinâmico. 
+                     No arranjo do Pix esta é a mesma sequência gerada e/ou lida pela 
+                     funcionalidade Pix Copia e Cola. Este campo deverá ser no formato UTF-8. 
+                     [Restrição] Preenchimento obrigatório para pagamentos por QR Code, observado o tamanho máximo de 512 bytes.
                 type: "object"
         links: 
           required: 
@@ -1757,34 +1907,58 @@ components:
                 type: "object"
           meta:
             $ref: '#/components/schemas/Meta'
-    PostBatchConsentsCreditorRequest:
-      type: object
-      required:
-        - data
-      properties:
-        data:
+    BatchConsentsCreditorRequest:
+      required: 
+        - "data"
+      properties: 
+        data: 
           type: "array"
           items: 
             type: "object"
-            required:
-              - "creditorId"
-              - "personType"
-              - "cpfCnpj"
-              - "name"
-              - "payment"
+            required: 
+              -  creditorId
+              - personType
+              - cpfCnpj
+              - name
+              - payment
             properties: 
               creditorId: 
                 type: "string"
+                format: "uuid"
                 example: "61709a24-be94-4401-88cb-e457cbe13808"
+                description: | 
+                  Identificador único do usuário recebedor. Será utilizado no pagamento para
+                  informar quais os parâmetros de pagamento relacionados a cada ordem de um lote"
               personType: 
                 type: "string"
                 example: "PESSOA_JURIDICA"
+                enum: 
+                 - PESSOA_NATURAL
+                 - PESSOA_JURIDICA
+                description: "Tipo de titular, pessoa natural ou juridica a quem se referem os dados de recebedor (creditor)."
               cpfCnpj: 
                 type: "string"
+                minLength: 11
+                maxLength: 14
+                pattern: ^\d{11}$|^\d{14}$
                 example: "58764789000137"
+                description: |
+                  Identificação da pessoa envolvida na transação.
+                  Preencher com o CPF ou CNPJ, de acordo com o valor escolhido no campo type.
+                  O CPF será utilizado com 11 números e deverá ser informado sem pontos ou traços.
+                  O CNPJ será utilizado com 14 números e deverá ser informado sem pontos ou traços.
               name: 
                 type: "string"
-                example: "Marco Antonio de Brito"
+                pattern: ^([A-Za-zÀ-ÖØ-öø-ÿ,.@:&*+_<>()!?/\\$%\d' -]+)$
+                maxLength: 120
+                example: Marco Antonio de Brito
+                description: |
+                  Em caso de pessoa natural deve ser informado o nome completo do titular da conta do recebedor.
+                  Em caso de pessoa jurídica deve ser informada a razão social ou o nome fantasia da conta do recebedor.
+              listed: 
+                type: "boolean"
+                example: true
+                description: "Indica se o recebedor deve ser listado no extrato do cliente pagador"
               payment: 
                 required: 
                   - "type"
@@ -1795,16 +1969,40 @@ components:
                   type: 
                     type: "string"
                     example: "PIX"
+                    description: "Este campo define o tipo de pagamento que será iniciado após a autorização do consentimento."
+                    enum: 
+                     - PIX
                   localInstrument: 
                     type: "string"
-                    example: "MANU|DICT|INIC|QRDN"
+                    example: "QRDN"
+                    enum:
+                     - MANU
+                     - DICT
+                     - INIC
+                     - QRDN
+                    description: |
+                     Especifica a forma de iniciação do pagamento:
+                      * MANU - Inserção manual de dados da conta transacional
+                      * DICT - Inserção manual de chave Pix
+                      * QRDN - QR code dinâmico
+                      * INIC - Indica que o recebedor (creditor) contratou o Iniciador de Pagamentos especificamente para realizar iniciações de pagamento em que o beneficiário é previamente conhecido.
                   currency: 
                     type: "string"
-                    example: "BRL"
+                    maxLength: 3
+                    pattern: ^([A-Z]{3})$
+                    example: BRL
+                    description: |
+                      Código da moeda nacional segundo modelo ISO-4217, ou seja, 'BRL'. 
+                      Todos os valores monetários informados estão representados com a moeda vigente do Brasil.
                   amount: 
                     type: "string"
                     example: "100000.12"
+                    minLength: 4
+                    maxLength: 19
+                    pattern: ^((\d{1,16}\.\d{2}))$
+                    description: Valor da transação com 2 casas decimais.
                   creditorAccount: 
+                    description: Objeto que contém a identificação da conta de destino do beneficiário/recebedor.
                     required: 
                       - "ispb"
                       - "issuer"
@@ -1813,26 +2011,100 @@ components:
                     properties: 
                       ispb: 
                         type: "string"
+                        minLength: 8
+                        maxLength: 8
+                        pattern: ^[0-9]{8}$
                         example: "12345678"
+                        description: | 
+                          Deve ser preenchido com o ISPB (Identificador do Sistema de Pagamentos Brasileiros) 
+                          do participante do SPI (Sistema de pagamentos instantâneos) somente com números.
                       issuer: 
                         type: "string"
+                        minLength: 1
+                        maxLength: 4
+                        pattern: ^[0-9]{1,4}$
                         example: "1774"
+                        description: | 
+                          Código da Agência emissora da conta sem dígito. (Agência é a dependência destinada 
+                          ao atendimento aos clientes, ao público em geral e aos associados de cooperativas
+                            de crédito, no exercício de atividades da instituição, não podendo ser móvel ou transitória).
+                          [Restrição] Preenchimento obrigatório para os seguintes tipos de conta: 
+                          * CACC (CONTA_DEPOSITO_A_VISTA) 
+                          * SVGS (CONTA_POUPANCA).
                       number: 
                         type: "string"
                         example: "1234567890"
+                        minLength: 1
+                        maxLength: 20
+                        pattern: ^[0-9]{1,20}$
+                        description: |
+                          Deve ser preenchido com o número da conta transacional do usuário pagador, com dígito 
+                          verificador (se este existir), se houver valor alfanumérico, este deve ser convertido para 0.
                       accountType: 
                         type: "string"
                         example: "CACC"
+                        description: |
+                          Tipos de contas usadas para pagamento. Modalidades tradicionais previstas pela Resolução 4.753, não contemplando contas vinculadas, conta de domiciliados no exterior, contas em moedas estrangeiras e conta correspondente moeda eletrônica.
+                          Segue descrição de cada valor do ENUM.
+
+                          * CACC - Current - Conta Corrente.
+                          * SVGS - Savings - Conta de Poupança.
+                          * TRAN - TransactingAccount - Conta de Pagamento pré-paga.
+                        enum: 
+                          - CACC
+                          - SVGS
+                          - TRAN
                     type: "object"
                   proxy: 
+                    maxLength: 77
+                    pattern: '[\w\W\s]*'
+                    example: "12345678901"
                     type: "string"
-                    example: "string"
+                    description: |
+                      Chave cadastrada no DICT pertencente ao recebedor. Os tipos de chaves
+                       podem ser: telefone, e-mail, cpf/cnpj ou chave aleatória. No caso de 
+                       telefone celular deve ser informado no padrão E.1641. Para e-mail deve 
+                       ter o formato xxxxxxxx@xxxxxxx.xxx(.xx) e no máximo 77 caracteres. 
+                       No caso de CPF deverá ser informado com 11 números, sem pontos ou traços. 
+                       Para o caso de CNPJ deverá ser informado com 14 números, sem pontos ou traços. 
+                       No caso de chave aleatória deve ser informado o UUID gerado pelo DICT, 
+                       conforme formato especificado na RFC41223. Se informado, a detentora 
+                       da conta deve validar o proxy no DICT quando localInstrument for igual 
+                       a DICT, QRDN ou QRES e validar o campo creditorAccount. Esta validação 
+                       é opcional caso o localInstrument for igual a INIC. 
+                       [Restrição] Se localInstrument for igual a MANU, o campo proxy não deve ser preenchido. Se localInstrument for igual INIC, DICT ou QRDN, o campo proxy deve ser sempre preenchido com a chave Pix.
                   transactionIdentification: 
                     type: "string"
-                    example: "string"
+                    pattern: ^[a-zA-Z0-9]{1,35}$
+                    maxLength: 35
+                    example: E00038166201907261559y6j6
+                    description: |
+                      Trata-se de um identificador de transação que deve ser retransmitido intacto pelo PSP do pagador ao gerar a ordem de pagamento. Essa informação permitirá ao recebedor identificar e correlacionar a transferência, quando recebida, com a apresentação das instruções ao pagador. Os caracteres permitidos no contexto do Pix para o campo txid (EMV 62-05) são:
+
+                      * Letras minúsculas, de 'a' a 'z'
+                      * Letras maiúsculas, de 'A' a 'z'
+                      * Dígitos decimais, de '0' a '9'
+                      
+                      [Restrição] Preenchimento condicional de acordo com o conteúdo do campo localInstument:
+                      * MANU - O campo transactionIdentification não deve ser preenchido.
+                      * DICT - O campo transactionIdentification não deve ser preenchido.
+                      * INIC - O campo transactionIdentification deve ser preenchido obrigatoriamente e deve conter até 25 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      * QRES - Caso o QR Code estático possua o dado <TxId> preenchido, o campo transactionIdentification deverá ser preenchido com este valor, caso o QR Code não possua o <TxId> o campo transactionIdentification não deverá ser preenchido. O <TxId> deve conter até 25 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      * QRDN - Será obrigatório seu preenchimento com o <TxId> do payload JSON do QR Code dinâmico. O <TxId> deve conter entre 26 e 35 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      A detentora de conta deve validar se a condicionalidade e o formato do campo foram atendidas pela iniciadora de pagamento.
                   qrCode: 
                     type: "string"
-                    example: "string"
+                    maxLength: 512
+                    pattern: '[\w\W\s]*'
+                    example: 00020104141234567890123426660014BR.GOV.BCB.PIX014466756C616E6F32303139406578616D706C652E636F6D27300012 BR.COM.OUTRO011001234567895204000053039865406123.455802BR5915NOMEDORECEBEDOR6008BRASILIA61087007490062 530515RP12345678-201950300017BR.GOV.BCB.BRCODE01051.0.080450014BR.GOV.BCB.PIX0123PADRAO.URL.PIX/0123AB CD81390012BR.COM.OUTRO01190123.ABCD.3456.WXYZ6304EB76
+                    description: | 
+                     Sequência de caracteres que corresponde ao QR Code disponibilizado para o pagador. 
+                     É a sequência de caracteres que seria lida pelo leitor de QR Code, 
+                     e deve propiciar o retorno dos dados do pagador após consulta na DICT. 
+                     Essa funcionalidade é possível tanto para QR Code estático quanto para QR Code dinâmico. 
+                     No arranjo do Pix esta é a mesma sequência gerada e/ou lida pela 
+                     funcionalidade Pix Copia e Cola. Este campo deverá ser no formato UTF-8. 
+                     [Restrição] Preenchimento obrigatório para pagamentos por QR Code, observado o tamanho máximo de 512 bytes.
                 type: "object"
     ResponseRecurringPaymentsIdPost:
       type: object
@@ -2780,6 +3052,18 @@ components:
                 type: "object"
               meta:
                 $ref: '#/components/schemas/Meta'
+    ResponseConsentCreditor:
+      description: Objeto contendo as informações de recebores para a iniciação de pagamento em lote.
+      headers:
+        x-fapi-interaction-id:
+          description: |
+           Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+      content:
+        application/jwt:
+          schema:
+            $ref: "#/components/schemas/ResponseBatchConsentCreditors"
     RecurringConsentsPost:
       description: Objeto contendo as informações de consentimento para a iniciação de pagamento individual.
       headers:
@@ -2803,7 +3087,7 @@ components:
       content:
         application/jwt:
           schema:
-            $ref: '#/components/schemas/ResponsePostBatchConsentCreditors'
+            $ref: '#/components/schemas/ResponseBatchConsentCreditors'
     200RecurringPixPaymentRead:
       description: Dados de iniciação de pagamento Pix obtidos com sucesso.
       headers:
