@@ -435,6 +435,11 @@ paths:
         - $ref: '#/components/parameters/xFapiCustomerIpAddress'
         - $ref: '#/components/parameters/xFapiInteractionId'
         - $ref: '#/components/parameters/pathBatchPaymentId'
+      requestBody:
+        content:
+          application/jwt:
+            schema:
+              $ref: '#/components/schemas/CreatePixBatchPayment'
       responses:
         '200':
           $ref: '#/components/responses/ResponseBatchPixPayment'
