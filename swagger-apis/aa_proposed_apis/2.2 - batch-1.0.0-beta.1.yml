@@ -1,0 +1,1936 @@
+openapi: 3.0.0
+info:
+  title: Batch Payments - Open Finance Brazil
+  description: |
+    API de Iniciação de Pagamentos em lote, responsável por viabilizar as operações de iniciação de pagamentos em lote para o Open Finance Brasil. 
+    Para cada uma das formas de pagamento previstas é necessário obter prévio consentimento do cliente através dos endpoints dedicados ao consentimento nesta API.
+
+    # Orientações
+    - `CONTA`, referente às instituições detentoras de conta participantes do Open Finance Brasil;
+    - `PAGTO`, referente às instituições iniciadoras de pagamento participantes do Open Finance Brasil. 
+    Os tokens utilizados para consumo nos endpoints de consentimentos devem possuir o scope payments e os endpoints de pagamentos recorrentes devem possuir os scopes openid e payments. 
+    Esta API não requer a implementação de permissions para sua utilização. 
+    Todas as requisições e respostas devem ser assinadas seguindo o protocolo estabelecido na sessão Assinaturas do guia de segurança.
+
+    ## Orientações gerais sobre os consentimentos de pagamentos automáticos
+    - Duração e reutilização do consentimento: A utilização das credenciais geradas a partir de uma autorização de um consentimento recorrente deve durar até que o consentimento recorrente atinja o fim do seu ciclo de vida, conforme detalhado na sua [máquina de estados](https://openfinancebrasil.atlassian.net/wiki/spaces/OF/pages/198410647). 
+    - Credenciais: As credenciais (authorization_code) geradas na autorização do consentimento devem ser utilizadas para criação dos pagamentos subsequentes utilizando o mecanismo de refresh, caso necessário. Maiores informações através do link [[PT] Open Finance Brasil Financial-grade API Security Profile 1.0 Implementers Draft 3 - Área do Desenvolvedor -Open Finance Brasil - Área do Desenvolvedor (atlassian.net)](https://openfinancebrasil.atlassian.net/wiki/spaces/OF/pages/82051180/PT+Open+Finance+Brasil+Financial-grade+API+Security+Profile+1.0+Implementers+Draft+3#7.2.2.-Servidor-de-autorização)
+
+    ## Regras do arranjo Pix
+    A implementação e o uso da API de Pagamentos Automáticos (Pix) devem seguir as regras do arranjo Pix do Banco Central, que podem ser encontradas no link abaixo:  
+    [Banco Central do Brasil](https://www.bcb.gov.br/estabilidadefinanceira/pix?modalAberto=regulamentacao_pix)
+
+    ## Assinatura de payloads
+    No contexto da API de Pagamentos Automáticos, os payloads de mensagem que trafegam tanto por parte da instituição iniciadora de transação de pagamento quanto por parte da instituição detentora de conta devem estar assinados. 
+    Para o processo de assinatura destes payloads, as instituições devem seguir as especificações de segurança publicadas no Portal do desenvolvedor.
+
+    ## Controle de acesso
+    - Os endpoints de consulta de pagamentos GET /pix/recurring-payments/{recurringPaymentId} e GET /pix/recurring-payments devem suportar acesso a partir de access_token emitido por meio de um grant_type do tipo client credentials, como opção do uso do token vinculado ao consentimento (hybrid flow).
+    - Para evitar vazamento de informação, a detentora deve validar que o pagamento consultado pertence ao ClientId que o criou e, caso haja divergências, retorne um erro HTTP 400.
+
+  version: 1.0.0-beta.1
+  license:
+    name: Apache 2.0
+    url: 'https://www.apache.org/licenses/LICENSE-2.0'
+  contact:
+    name: Governança do Open Finance Brasil - Especificações
+    email: gt-interfaces@openbankingbr.org
+    url: 'https://openbanking-brasil.github.io/areadesenvolvedor/'
+servers:
+  - url: 'https://api.banco.com.br/open-banking/automatic-payments/v1'
+    description: Servidor de Produção
+  - url: 'https://apih.banco.com.br/open-banking/automatic-payments/v1'
+    description: Servidor de Homologação
+tags:
+  - name: Consents
+    description: Métodos para criação e gestão de consentimentos
+  - name: Batch Payments
+    description: Métodos para criação e gestão de pagamentos em lote
+paths:
+  /batch-consents:
+    post:
+      tags:
+        - Consents
+      summary: Cria um consentimento para transações de pagamentos em lote.
+      operationId: batchPaymentPostBatchConsent
+      description: Método para criação de consentimento. Retorna um `consentId` no status AWAITING_CREDITORS.
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/xCustomerUserAgent'
+        - $ref: '#/components/parameters/xFapiAuthDate'
+        - $ref: '#/components/parameters/xFapiCustomerIpAddress'
+        - $ref: '#/components/parameters/xFapiInteractionId'
+        - $ref: '#/components/parameters/XIdempotencyKey'
+      requestBody:
+        content:
+          application/jwt:
+            schema:
+              $ref: '#/components/schemas/CreateConsent'
+        description: Payload para criação do consentimento para iniciação do pagamento.
+        required: true
+      responses:
+        '201':
+          $ref: '#/components/responses/ResponseConsent'
+        '400':
+          $ref: '#/components/responses/BadRequestPaymentsConsents'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '422':
+          $ref: '#/components/responses/UnprocessableConsents'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
+        '529':
+          $ref: '#/components/responses/SiteIsOverloaded'
+        default:
+          description: Erro inesperado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      security:
+        - OAuth2ClientCredentials:
+            - recurringPayments
+  '/batch-consents/{consentId}':
+    patch: 
+      tags:
+        - Consents
+      summary: Cancela um consentimento para iniciação de pagamentos em lote
+      operationId: batchPaymentPatchBatchConsentCreditors
+      description: Método para cancelar um consentimento (Payload ainda não definido)
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/xCustomerUserAgent'
+        - $ref: '#/components/parameters/xFapiAuthDate'
+        - $ref: '#/components/parameters/xFapiCustomerIpAddress'
+        - $ref: '#/components/parameters/xFapiInteractionId'
+        - $ref: '#/components/parameters/XIdempotencyKey'
+        - $ref: '#/components/parameters/pathConsentId'
+      requestBody:
+        content:
+          application/jwt:
+            schema:
+              $ref: '#/components/schemas/CreateConsent'
+        description: Payload para criação do consentimento para iniciação do pagamento.
+        required: true
+      responses:
+        '201':
+          $ref: '#/components/responses/ResponseConsent'
+        '400':
+          $ref: '#/components/responses/BadRequestPaymentsConsents'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '422':
+          $ref: '#/components/responses/UnprocessableConsents'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
+        '529':
+          $ref: '#/components/responses/SiteIsOverloaded'
+        default:
+          description: Erro inesperado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      security:
+        - OAuth2ClientCredentials:
+            - recurringPayments      
+    get:
+      tags:
+        - Consents
+      summary: Busca informações de um consentimento.
+      operationId: automaticPaymentsGetRecurringConsentsConsentId
+      description: Método para buscar informações sobre um consentimento de longa duração.
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/xCustomerUserAgent'
+        - $ref: '#/components/parameters/xFapiAuthDate'
+        - $ref: '#/components/parameters/xFapiCustomerIpAddress'
+        - $ref: '#/components/parameters/xFapiInteractionIdUUID'
+        - $ref: '#/components/parameters/pathConsentId'
+      responses:
+        '200':
+          $ref: '#/components/responses/ResponseConsent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
+        '529':
+          $ref: '#/components/responses/SiteIsOverloaded'
+        default:
+          description: Erro inesperado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      security:
+        - OAuth2ClientCredentials:
+            - recurringPayments
+  "/batch-consents/{consentId}/creditors":
+    post: 
+      tags:
+        - Consents
+      summary: Adicionar recebedores a um consentimento
+      operationId: batchPaymentsPostConsentCreditors
+      description: Método adicionar recebedores para um determinado consentimento
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/xCustomerUserAgent'
+        - $ref: '#/components/parameters/xFapiAuthDate'
+        - $ref: '#/components/parameters/xFapiCustomerIpAddress'
+        - $ref: '#/components/parameters/xFapiInteractionId'
+        - $ref: '#/components/parameters/pathConsentId'
+        - $ref: '#/components/parameters/XIdempotencyKey'
+      requestBody:
+        content:
+          application/jwt:
+            schema:
+              $ref: '#/components/schemas/BatchConsentsCreditorRequest'
+        description: Payload para criação do consentimento para iniciação do pagamento em lote.
+        required: true
+      responses:
+        '201':
+          $ref: '#/components/responses/ResponseConsentCreditor'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntityRecurringConsents'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
+        '529':
+          $ref: '#/components/responses/SiteIsOverloaded'
+        default:
+          description: Erro inesperado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      security:
+        - OAuth2ClientCredentials:
+            - recurringPayments
+    get: 
+      tags:
+        - Consents
+      summary: Recuperar lista de recebedores de um determinado consentimento
+      operationId: batchPaymentsGetConsentCreditors
+      description: Método adicionar recebedores para um determinado consentimento
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/xCustomerUserAgent'
+        - $ref: '#/components/parameters/xFapiAuthDate'
+        - $ref: '#/components/parameters/xFapiCustomerIpAddress'
+        - $ref: '#/components/parameters/xFapiInteractionId'
+        - $ref: '#/components/parameters/pathConsentId'
+        - $ref: '#/components/parameters/XIdempotencyKey'
+        - name: page-size
+          in: query
+          description: Quantidade de items que devem ser retornados em uma página
+          schema: 
+            type: integer
+            example: 100
+        - name: page
+          in: query
+          description: Número da página que está sendo requisitada (o valor da primeira página é 1).
+          schema: 
+            type: integer
+            example: 25
+        - name: pagination-key
+          in: query
+          description: Identificador de rechamada, utilizado para evitar a contagem de chamadas ao endpoint durante a paginação.
+          schema: 
+            type: string
+            format: UUID
+      responses:
+        '200':
+          $ref: '#/components/responses/ResponseConsentCreditor'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntityRecurringConsents'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
+        '529':
+          $ref: '#/components/responses/SiteIsOverloaded'
+        default:
+          description: Erro inesperado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      security:
+        - OAuth2ClientCredentials:
+            - recurringPayments       
+  /pix/batch-payments:
+    post:
+      tags:
+        - Batch Payments
+      summary: Cria uma transação de pagamento.
+      operationId: automaticPaymentsPostPixRecurringPayments
+      description: Método para criação de uma transação de pagamento. Retorna um recurringPaymentId.
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/xCustomerUserAgent'
+        - $ref: '#/components/parameters/xFapiAuthDate'
+        - $ref: '#/components/parameters/xFapiCustomerIpAddress'
+        - $ref: '#/components/parameters/xFapiInteractionId'
+        - $ref: '#/components/parameters/XIdempotencyKey'
+      requestBody:
+        content:
+          application/jwt:
+            schema:
+              $ref: '#/components/schemas/CreatePixBatchPayment'
+        description: Payload para criação da iniciação do pagamento Pix.
+        required: true
+      responses:
+        '201':
+          $ref: '#/components/responses/ResponseBatchPixPayment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntityPixRecurringPayment'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
+        '529':
+          $ref: '#/components/responses/SiteIsOverloaded'
+        default:
+          description: Erro inesperado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      security:
+        - OAuth2AuthorizationCode:
+            - openid
+            - 'recurringConsent:recurringConsentId'
+            - recurringPayments
+        - NonRedirectAuthorizationCode:
+            - openid
+            - recurringPayments
+            - 'enrollment:enrollmentId'
+            - nrp-consents
+    get:
+      tags:
+        - Batch Payments
+      summary: Busca informações de transações de pagamentos associadas a um consentimento.
+      operationId: automaticPaymentsGetPixRecurringPayments
+      description: |
+        Método para buscar informações sobre um conjunto de pagamentos associados ao mesmo recurringConsentId. 
+        Também é possível enviar uma data de início (startDate) e final (endDate), caso a busca seja por transações em uma determinada janela de tempo.
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/xCustomerUserAgent'
+        - $ref: '#/components/parameters/xFapiAuthDate'
+        - $ref: '#/components/parameters/xFapiCustomerIpAddress'
+        - $ref: '#/components/parameters/xFapiInteractionId'
+        - $ref: '#/components/parameters/consentId'
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          $ref: '#/components/responses/ResponseBatchPixPayment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
+        '529':
+          $ref: '#/components/responses/SiteIsOverloaded'
+        default:
+          description: Erro inesperado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      security:
+        - OAuth2ClientCredentials:
+            - recurringPayments
+    patch:
+      tags:
+        - Batch Payments
+      summary: Cancela uma ou mais solicitações de pagamento em lote.
+      operationId: automaticPaymentsGetPixRecurringPaymentsPaymentId
+      description: Método para buscar informações sobre um pagamento.
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/xCustomerUserAgent'
+        - $ref: '#/components/parameters/xFapiAuthDate'
+        - $ref: '#/components/parameters/xFapiCustomerIpAddress'
+        - $ref: '#/components/parameters/xFapiInteractionId'
+        - $ref: '#/components/parameters/pathBatchPaymentId'
+      requestBody:
+        content:
+          application/jwt:
+            schema:
+              $ref: '#/components/schemas/CreatePixBatchPayment'
+      responses:
+        '200':
+          $ref: '#/components/responses/ResponseBatchPixPayment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeoutWithAdditionalProperties'
+        '529':
+          $ref: '#/components/responses/SiteIsOverloaded'
+        default:
+          description: Erro inesperado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseError'
+      security:
+        - OAuth2ClientCredentials:
+            - recurringPayments
+components:
+  schemas:
+    ResponseErrorCreateConsent:
+      type: object
+      required:
+        - errors
+      properties:
+        errors:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: object
+            required:
+              - code
+              - title
+              - detail
+            properties:
+              code:
+                type: string
+                enum:
+                  - DATA_PAGAMENTO_INVALIDA
+                  - DETALHE_PAGAMENTO_INVALIDO
+                  - PARAMETRO_NAO_INFORMADO
+                  - PARAMETRO_INVALIDO
+                  - ERRO_IDEMPOTENCIA
+                  - NAO_INFORMADO
+                  - FUNCIONALIDADE_NAO_HABILITADA
+                example: DATA_PAGAMENTO_INVALIDA
+                description: |
+                  Códigos de erros previstos na criação de consentimento para a iniciação de pagamentos:   
+                  - DATA_PAGAMENTO_INVALIDA
+                  - DETALHE_PAGAMENTO_INVALIDO
+                  - PARAMETRO_NAO_INFORMADO
+                  - PARAMETRO_INVALIDO
+                  - ERRO_IDEMPOTENCIA
+                  - NAO_INFORMADO
+                  - FUNCIONALIDADE_NAO_HABILITADA
+              title:
+                type: string
+                maxLength: 255
+                pattern: '[\w\W\s]*'
+                example: Forma de pagamento inválida.
+                description: |
+                  Título específico do erro reportado, de acordo com o código enviado:  
+                  - DATA_PAGAMENTO_INVALIDA: Data de pagamento inválida.  
+                  - DETALHE_PAGAMENTO_INVALIDO: Detalhe do pagamento inválido.  
+                  - PARAMETRO_NAO_INFORMADO: Parâmetro não informado.  
+                  - PARAMETRO_INVALIDO: Parâmetro inválido.  
+                  - ERRO_IDEMPOTENCIA: Erro idempotência.  
+                  - NAO_INFORMADO: Não informado.  
+                  - FUNCIONALIDADE_NAO_HABILITADA: A detentora de conta não oferece o serviço nessa modalidade. 
+              detail:
+                type: string
+                maxLength: 2048
+                pattern: '[\w\W\s]*'
+                example: 'Forma de pagamento [Modalidade] não suportada.'
+                description: |
+                  Descrição específica do erro de acordo com o código reportado:  
+                  - DATA_PAGAMENTO_INVALIDA: Data de pagamento inválida para a forma de pagamento selecionada.  
+                  - DETALHE_PAGAMENTO_INVALIDO: Parâmetro [nome_campo] não obedece às regras de negócio.  
+                  - PARAMETRO_NAO_INFORMADO: Parâmetro [nome_campo] obrigatório não informado.  
+                  - PARAMETRO_INVALIDO: Parâmetro [nome_campo] não obedece as regras de formatação esperadas.  
+                  - ERRO_IDEMPOTENCIA: Conteúdo da mensagem (claim data) diverge do conteúdo associado a esta chave de idempotência (x-idempotency-key).  
+                  - NAO_INFORMADO: Não reportado/identificado pela instituição detentora de conta.  
+                  - FUNCIONALIDADE_NAO_HABILITADA: A detentora de conta não oferece o serviço nessa modalidade.
+        meta:
+          $ref: '#/components/schemas/Meta'
+    422ResponseErrorRecurringConsents:
+      type: object
+      required:
+        - errors
+      properties:
+        errors:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: object
+            required:
+              - code
+              - title
+              - detail
+            properties:
+              code:
+                type: string
+                enum:
+                  - CONSENTIMENTO_NAO_PERMITE_CANCELAMENTO
+                  - CAMPO_NAO_PERMITIDO
+                example: CAMPO_NAO_PERMITIDO
+              title:
+                type: string
+                maxLength: 255
+                pattern: '[\w\W\s]*'
+                example: O pagamento está com status que não permite o cancelamento.
+                description: |
+                  Título específico do erro reportado, de acordo com o código enviado:  
+                  - CONSENTIMENTO_NAO_PERMITE_CANCELAMENTO: O status do consentimento não permite a realização do cancelamento (em status "CONSUMED" ou "REJECTED")
+                  - CAMPO_NAO_PERMITIDO: O(s) campo(s) solicitado(s) para edição não podem ser editados.
+              detail:
+                type: string
+                maxLength: 2048
+                pattern: '[\w\W\s]*'
+                example: 'O pagamento está com status que não permite o cancelamento'
+                description: |
+                  Descrição específica do erro de acordo com o código reportado:  
+                  - CONSENTIMENTO_NAO_PERMITE_CANCELAMENTO: O status do consentimento não permite a realização do cancelamento (em status "CONSUMED" ou "REJECTED")
+                  - CAMPO_NAO_PERMITIDO: O(s) campo(s) solicitado(s) para edição não podem ser editados.
+        meta:
+          $ref: '#/components/schemas/Meta'
+    422ResponseErrorCreatePixRecurringPayment:
+      type: object
+      required:
+        - errors
+      properties:
+        errors:
+          type: array
+          minItems: 1
+          maxItems: 9
+          items:
+            type: object
+            required:
+              - code
+              - title
+              - detail
+            properties:
+              code:
+                type: string
+                enum:
+                  - SALDO_INSUFICIENTE
+                  - VALOR_ACIMA_LIMITE
+                  - VALOR_INVALIDO
+                  - LIMITE_PERIODO_VALOR_EXCEDIDO
+                  - LIMITE_PERIODO_QUANTIDADE_EXCEDIDO
+                  - CONSENTIMENTO_INVALIDO
+                  - PARAMETRO_NAO_INFORMADO
+                  - PARAMETRO_INVALIDO
+                  - NAO_INFORMADO
+                  - PAGAMENTO_DIVERGENTE_CONSENTIMENTO
+                  - DETALHE_PAGAMENTO_INVALIDO
+                  - PAGAMENTO_RECUSADO_DETENTORA
+                  - PAGAMENTO_RECUSADO_SPI
+                  - ERRO_IDEMPOTENCIA
+                example: SALDO_INSUFICIENTE
+                description: |
+                  Códigos de erros previstos na criação da iniciação de pagamento:
+                  - SALDO_INSUFICIENTE: Esta conta não possui saldo suficiente para realizar o pagamento.
+                  - VALOR_ACIMA_LIMITE: O valor (ou quantidade de transações) ultrapassa a faixa de limite parametrizada na detentora para permitir a realização de transações pelo cliente.
+                  - VALOR_INVALIDO: O valor enviado não é válido para o QR Code informado.
+                  - LIMITE_PERIODO_VALOR_EXCEDIDO: A transação não pode ser realizada pois o valor parametrizado no consentimento foi excedido.
+                  - LIMITE_PERIODO_QUANTIDADE_EXCEDIDO: A transação não pode ser realizada pois a quantidade parametrizada no consentimento foi excedida.
+                  - CONSENTIMENTO_INVALIDO: Consentimento inválido (status não é "authorised" ou está expirado).
+                  - PARAMETRO_NAO_INFORMADO: Parâmetro não informado.
+                  - PARAMETRO_INVALIDO: Parâmetro inválido.
+                  - NAO_INFORMADO: Não informada pela detentora de conta.
+                  - PAGAMENTO_DIVERGENTE_CONSENTIMENTO: Dados do pagamento divergentes dos dados do consentimento.
+                  - DETALHE_PAGAMENTO_INVALIDO: Detalhe do pagamento inválido.
+                  - PAGAMENTO_RECUSADO_DETENTORA: Pagamento recusado pela detentora de conta.
+                  - PAGAMENTO_RECUSADO_SPI: Pagamento recusado no Sistema de Pagamentos Instantâneos (SPI).
+                  - ERRO_IDEMPOTENCIA: Erro idempotência.
+              title:
+                type: string
+                maxLength: 255
+                pattern: '[\w\W\s]*'
+                example: Saldo insuficiente.
+                description: |
+                  Título específico do erro reportado, de acordo com o código enviado:
+                  - SALDO_INSUFICIENTE: Esta conta não possui saldo suficiente para realizar o pagamento.
+                  - VALOR_ACIMA_LIMITE: O valor (ou quantidade de transações) ultrapassa a faixa de limite parametrizada na detentora para permitir a realização de transações pelo cliente.
+                  - VALOR_INVALIDO: O valor enviado não é válido para o QR Code informado.
+                  - LIMITE_PERIODO_VALOR_EXCEDIDO: A transação não pode ser realizada pois o valor parametrizado no consentimento foi excedido.
+                  - LIMITE_PERIODO_QUANTIDADE_EXCEDIDO: A transação não pode ser realizada pois a quantidade parametrizada no consentimento foi excedida.
+                  - CONSENTIMENTO_INVALIDO: Consentimento inválido (status não é "authorised" ou está expirado).
+                  - PARAMETRO_NAO_INFORMADO: Parâmetro não informado.
+                  - PARAMETRO_INVALIDO: Parâmetro inválido.
+                  - NAO_INFORMADO: Não informada pela detentora de conta.
+                  - PAGAMENTO_DIVERGENTE_CONSENTIMENTO: Dados do pagamento divergentes dos dados do consentimento.
+                  - DETALHE_PAGAMENTO_INVALIDO: Detalhe do pagamento inválido.
+                  - PAGAMENTO_RECUSADO_DETENTORA: Pagamento recusado pela detentora de conta.
+                  - PAGAMENTO_RECUSADO_SPI: Pagamento recusado no Sistema de Pagamentos Instantâneos (SPI).
+                  - ERRO_IDEMPOTENCIA: Erro idempotência.
+              detail:
+                type: string
+                maxLength: 2048
+                pattern: '[\w\W\s]*'
+                example: A conta selecionada não possui saldo suficiente para realizar o pagamento.
+                description: |
+                  Descrição específica do erro de acordo com o código reportado:
+                  - SALDO_INSUFICIENTE: Esta conta não possui saldo suficiente para realizar o pagamento.
+                  - VALOR_ACIMA_LIMITE: O valor (ou quantidade de transações) ultrapassa a faixa de limite parametrizada na detentora para permitir a realização de transações pelo cliente.
+                  - VALOR_INVALIDO: O valor enviado não é válido para o QR Code informado.
+                  - LIMITE_PERIODO_VALOR_EXCEDIDO: A transação não pode ser realizada pois o valor parametrizado no consentimento foi excedido.
+                  - LIMITE_PERIODO_QUANTIDADE_EXCEDIDO: A transação não pode ser realizada pois a quantidade parametrizada no consentimento foi excedida.
+                  - CONSENTIMENTO_INVALIDO: Consentimento inválido (status não é "authorised" ou está expirado).
+                  - PARAMETRO_NAO_INFORMADO: Parâmetro não informado.
+                  - PARAMETRO_INVALIDO: Parâmetro inválido.
+                  - NAO_INFORMADO: Não informada pela detentora de conta.
+                  - PAGAMENTO_DIVERGENTE_CONSENTIMENTO: Dados do pagamento divergentes dos dados do consentimento.
+                  - DETALHE_PAGAMENTO_INVALIDO: Detalhe do pagamento inválido.
+                  - PAGAMENTO_RECUSADO_DETENTORA: Pagamento recusado pela detentora de conta.
+                  - PAGAMENTO_RECUSADO_SPI: Pagamento recusado no Sistema de Pagamentos Instantâneos (SPI).
+                  - ERRO_IDEMPOTENCIA: Erro idempotência.
+        meta:
+          $ref: '#/components/schemas/Meta'
+    CreateConsent:
+      required: 
+        - "data"
+      properties: 
+        data: 
+          required: 
+            - "loggedUser"
+            - "businessEntity"
+            - "status"
+            - "batchConfigurations"
+            - "debtorAccount"
+          properties: 
+            loggedUser: 
+              required: 
+                - "document"
+              properties: 
+                document: 
+                  required: 
+                    - "identification"
+                    - "rel"
+                  properties: 
+                    identification: 
+                      type: "string"
+                      example: "11111111111"
+                    rel: 
+                      type: "string"
+                      example: "CPF"
+                  type: "object"
+              type: "object"
+            businessEntity: 
+              required: 
+                - "document"
+              properties: 
+                document: 
+                  required: 
+                    - "identification"
+                    - "rel"
+                  properties: 
+                    identification: 
+                      type: "string"
+                      example: "11111111111111"
+                    rel: 
+                      type: "string"
+                      example: "CNPJ"
+                  type: "object"
+              type: "object"
+            status: 
+              type: "string"
+              example: "AWAITING_AUTHORISATION"
+              enum:
+                - AWAITING_AUTHORISATION
+                - AUTHORISED
+                - PARTIALLY_ACCEPTED
+                - REVOKED
+                - REJECTED
+                - CONSUMED
+            batchConfigurations: 
+              type: "array"
+              items: 
+                type: "object"
+                properties: 
+                  type: 
+                    type: "string"
+                    example: "CONSOLIDATED | INDIVIDUAL"
+                  description: 
+                    type: "string"
+                    example: "batch imediato"
+                  total: 
+                    type: "number"
+                    example: 200
+                  batchValue: 
+                    type: "string"
+                    example: "39000.00"
+                  batchType: 
+                    type: "string"
+                    example: "IMEDIATE"
+            debtorAccount: 
+              required: 
+                - "ispb"
+                - "issuer"
+                - "number"
+                - "accountType"
+              properties: 
+                ispb: 
+                  type: "string"
+                  example: "12345678"
+                issuer: 
+                  type: "string"
+                  example: "0001"
+                number: 
+                  type: "string"
+                  example: "12345456"
+                accountType: 
+                  type: "string"
+                  example: "CACC"
+              type: "object"
+          type: "object"
+    CreatePixBatchPayment:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/CreatePixBatchPaymentData'
+    CreatePixBatchPaymentData:
+      required: 
+        - "data"
+      properties: 
+        data: 
+          type: "array"
+          items: 
+            type: "object"
+            properties: 
+              creditorId: 
+                type: "string"
+                format: uuid
+                example: "61709a24-be94-4401-88cb-e457cbe13808"
+                description: Identificador único do usuário recebedor. Será utilizado no pagamento para informar quais os parâmetros de pagamento relacionados a cada ordem de um lote
+              endToEndId: 
+                type: "string"
+                example: "E9040088820210128000800123873170"
+                description: |
+                  Deve ser preenchido no formato padrão ExxxxxxxxyyyyMMddHHmmkkkkkkkkkkk (32 caracteres; “case sensitive”, isso é, diferencia letras maiúsculas e minúsculas), sendo:
+                  * “E” - fixo (1 caractere);
+                  * xxxxxxxx - identificação do agente que gerou o 'EndToEndId', podendo ser: o ISPB do participante direto ou o ISPB do participante indireto (8 caracteres numéricos [0-9]);
+                  * yyyyMMddHHmm - data, hora e minuto (12 caracteres), seguindo o horário UTC, da submissão da ordem de pagamento, caso a liquidação seja prioritária, ou prevista para o envio da ordem ao sistema de liquidação, caso seja realizado um agendamento. Para ordens prioritárias e não prioritárias, aceita-se o preenchimento, pelo agente que gerou o 'EndToEndId', com uma tolerância máxima de 12 horas, para o futuro e para o passado, em relação ao horário efetivo de processamento da ordem pelo SPI;
+                  * kkkkkkkkkkk - sequencial criado pelo agente que gerou o 'EndToEndId' (11 caracteres alfanuméricos [a-z/A-Z/0-9]). Deve ser único dentro de cada “yyyyMMddHHmm”.
+                  Admite-se que o 'EndToEndId' seja gerado pelo participante direto, pelo participante indireto ou pelo iniciador de pagamento.
+                  Ele deve ser único, não podendo ser repetido em qualquer outra operação enviada ao SPI.
+                  No caso de Pix agendamento, a iniciadora deverá, no que tange a composição do endToEndId, utilizar a data para a qual o Pix está sendo agendado e horário fixo 15:00 UTC, que dará para a detentora a janela de efetivação de 00:00 e 23:59 do horário de Brasília.
+              remittanceInformation: 
+                type: "string"
+                maxLength: 140
+                pattern: '[\w\W\s]*'
+                example: "Pagamento da nota XPTO035-002."
+                description: Deve ser preenchido sempre que o usuário pagador inserir alguma informação adicional em um pagamento, a ser enviada ao recebedor.
+    Meta:
+      type: object
+      description: Meta informação referente a API requisitada.
+      required:
+        - requestDateTime
+      properties:
+        requestDateTime:
+          description: 'Data e hora da consulta, conforme especificação [RFC-3339](https://datatracker.ietf.org/doc/html/rfc3339), formato UTC.'
+          type: string
+          pattern: '^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])T(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)Z$'
+          maxLength: 20
+          format: date-time
+          example: '2021-05-21T08:30:00Z'
+    ResponseError:
+      type: object
+      required:
+        - errors
+      properties:
+        errors:
+          type: array
+          minItems: 1
+          maxItems: 13
+          items:
+            type: object
+            required:
+              - code
+              - title
+              - detail
+            properties:
+              code:
+                description: Código de erro específico do endpoint
+                type: string
+                pattern: '[\w\W\s]*'
+                maxLength: 255
+              title:
+                description: Título legível por humanos deste erro específico
+                type: string
+                pattern: '[\w\W\s]*'
+                maxLength: 255
+              detail:
+                description: Descrição legível por humanos deste erro específico
+                type: string
+                pattern: '[\w\W\s]*'
+                maxLength: 2048
+        meta:
+          type: object
+          description: Meta informações referente à API requisitada.
+          required:
+            - requestDateTime
+          properties:
+            requestDateTime:
+              description: 'Data e hora da consulta, conforme especificação [RFC-3339](https://datatracker.ietf.org/doc/html/rfc3339), formato UTC.'
+              type: string
+              maxLength: 20
+              format: date-time
+              example: '2021-05-21T08:30:00Z'
+    ResponseBatchConsentCreditors:
+      required: 
+        - "data"
+        - "links"
+        - "meta"
+      properties: 
+        data: 
+          type: "array"
+          maxItems: 100
+          items: 
+            type: "object"
+            required: 
+              -  creditorId
+              - personType
+              - cpfCnpj
+              - name
+              - payment
+            properties: 
+              creditorId: 
+                type: "string"
+                format: "uuid"
+                example: "61709a24-be94-4401-88cb-e457cbe13808"
+                description: | 
+                  Identificador único do usuário recebedor. Será utilizado no pagamento para
+                  informar quais os parâmetros de pagamento relacionados a cada ordem de um lote"
+              personType: 
+                type: "string"
+                example: "PESSOA_JURIDICA"
+                enum: 
+                 - PESSOA_NATURAL
+                 - PESSOA_JURIDICA
+                description: "Tipo de titular, pessoa natural ou juridica a quem se referem os dados de recebedor (creditor)."
+              cpfCnpj: 
+                type: "string"
+                minLength: 11
+                maxLength: 14
+                pattern: ^\d{11}$|^\d{14}$
+                example: "58764789000137"
+                description: |
+                  Identificação da pessoa envolvida na transação.
+                  Preencher com o CPF ou CNPJ, de acordo com o valor escolhido no campo type.
+                  O CPF será utilizado com 11 números e deverá ser informado sem pontos ou traços.
+                  O CNPJ será utilizado com 14 números e deverá ser informado sem pontos ou traços.
+              name: 
+                type: "string"
+                pattern: ^([A-Za-zÀ-ÖØ-öø-ÿ,.@:&*+_<>()!?/\\$%\d' -]+)$
+                maxLength: 120
+                example: Marco Antonio de Brito
+                description: |
+                  Em caso de pessoa natural deve ser informado o nome completo do titular da conta do recebedor.
+                  Em caso de pessoa jurídica deve ser informada a razão social ou o nome fantasia da conta do recebedor.
+              listed: 
+                type: "boolean"
+                example: true
+                description: "Indica se o recebedor deve ser listado no extrato do cliente pagador"
+              payment: 
+                required: 
+                  - "type"
+                  - "localInstrument"
+                  - "currency"
+                  - "amount"
+                properties: 
+                  type: 
+                    type: "string"
+                    example: "PIX"
+                    description: "Este campo define o tipo de pagamento que será iniciado após a autorização do consentimento."
+                    enum: 
+                     - PIX
+                  localInstrument: 
+                    type: "string"
+                    example: "QRDN"
+                    enum:
+                     - MANU
+                     - DICT
+                     - INIC
+                     - QRDN
+                    description: |
+                     Especifica a forma de iniciação do pagamento:
+                      * MANU - Inserção manual de dados da conta transacional
+                      * DICT - Inserção manual de chave Pix
+                      * QRDN - QR code dinâmico
+                      * INIC - Indica que o recebedor (creditor) contratou o Iniciador de Pagamentos especificamente para realizar iniciações de pagamento em que o beneficiário é previamente conhecido.
+                  currency: 
+                    type: "string"
+                    maxLength: 3
+                    pattern: ^([A-Z]{3})$
+                    example: BRL
+                    description: |
+                      Código da moeda nacional segundo modelo ISO-4217, ou seja, 'BRL'. 
+                      Todos os valores monetários informados estão representados com a moeda vigente do Brasil.
+                  amount: 
+                    type: "string"
+                    example: "100000.12"
+                    minLength: 4
+                    maxLength: 19
+                    pattern: ^((\d{1,16}\.\d{2}))$
+                    description: Valor da transação com 2 casas decimais.
+                  creditorAccount: 
+                    description: Objeto que contém a identificação da conta de destino do beneficiário/recebedor.
+                    required: 
+                      - "ispb"
+                      - "number"
+                      - "accountType"
+                    properties: 
+                      ispb: 
+                        type: "string"
+                        minLength: 8
+                        maxLength: 8
+                        pattern: ^[0-9]{8}$
+                        example: "12345678"
+                        description: | 
+                          Deve ser preenchido com o ISPB (Identificador do Sistema de Pagamentos Brasileiros) 
+                          do participante do SPI (Sistema de pagamentos instantâneos) somente com números.
+                      issuer: 
+                        type: "string"
+                        minLength: 1
+                        maxLength: 4
+                        pattern: ^[0-9]{1,4}$
+                        example: "1774"
+                        description: | 
+                          Código da Agência emissora da conta sem dígito. (Agência é a dependência destinada 
+                          ao atendimento aos clientes, ao público em geral e aos associados de cooperativas
+                            de crédito, no exercício de atividades da instituição, não podendo ser móvel ou transitória).
+                          [Restrição] Preenchimento obrigatório para os seguintes tipos de conta: 
+                          * CACC (CONTA_DEPOSITO_A_VISTA) 
+                          * SVGS (CONTA_POUPANCA).
+                      number: 
+                        type: "string"
+                        example: "1234567890"
+                        minLength: 1
+                        maxLength: 20
+                        pattern: ^[0-9]{1,20}$
+                        description: |
+                          Deve ser preenchido com o número da conta transacional do usuário pagador, com dígito 
+                          verificador (se este existir), se houver valor alfanumérico, este deve ser convertido para 0.
+                      accountType: 
+                        type: "string"
+                        example: "CACC"
+                        description: |
+                          Tipos de contas usadas para pagamento. Modalidades tradicionais previstas pela Resolução 4.753, não contemplando contas vinculadas, conta de domiciliados no exterior, contas em moedas estrangeiras e conta correspondente moeda eletrônica.
+                          Segue descrição de cada valor do ENUM.
+
+                          * CACC - Current - Conta Corrente.
+                          * SVGS - Savings - Conta de Poupança.
+                          * TRAN - TransactingAccount - Conta de Pagamento pré-paga.
+                        enum: 
+                          - CACC
+                          - SVGS
+                          - TRAN
+                    type: "object"
+                  proxy: 
+                    maxLength: 77
+                    pattern: '[\w\W\s]*'
+                    example: "12345678901"
+                    type: "string"
+                    description: |
+                      Chave cadastrada no DICT pertencente ao recebedor. Os tipos de chaves
+                       podem ser: telefone, e-mail, cpf/cnpj ou chave aleatória. No caso de 
+                       telefone celular deve ser informado no padrão E.1641. Para e-mail deve 
+                       ter o formato xxxxxxxx@xxxxxxx.xxx(.xx) e no máximo 77 caracteres. 
+                       No caso de CPF deverá ser informado com 11 números, sem pontos ou traços. 
+                       Para o caso de CNPJ deverá ser informado com 14 números, sem pontos ou traços. 
+                       No caso de chave aleatória deve ser informado o UUID gerado pelo DICT, 
+                       conforme formato especificado na RFC41223. Se informado, a detentora 
+                       da conta deve validar o proxy no DICT quando localInstrument for igual 
+                       a DICT, QRDN ou QRES e validar o campo creditorAccount. Esta validação 
+                       é opcional caso o localInstrument for igual a INIC. 
+                       [Restrição] Se localInstrument for igual a MANU, o campo proxy não deve ser preenchido. Se localInstrument for igual INIC, DICT ou QRDN, o campo proxy deve ser sempre preenchido com a chave Pix.
+                  transactionIdentification: 
+                    type: "string"
+                    pattern: ^[a-zA-Z0-9]{1,35}$
+                    maxLength: 35
+                    example: E00038166201907261559y6j6
+                    description: |
+                      Trata-se de um identificador de transação que deve ser retransmitido intacto pelo PSP do pagador ao gerar a ordem de pagamento. Essa informação permitirá ao recebedor identificar e correlacionar a transferência, quando recebida, com a apresentação das instruções ao pagador. Os caracteres permitidos no contexto do Pix para o campo txid (EMV 62-05) são:
+
+                      * Letras minúsculas, de 'a' a 'z'
+                      * Letras maiúsculas, de 'A' a 'z'
+                      * Dígitos decimais, de '0' a '9'
+                      
+                      [Restrição] Preenchimento condicional de acordo com o conteúdo do campo localInstument:
+                      * MANU - O campo transactionIdentification não deve ser preenchido.
+                      * DICT - O campo transactionIdentification não deve ser preenchido.
+                      * INIC - O campo transactionIdentification deve ser preenchido obrigatoriamente e deve conter até 25 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      * QRES - Caso o QR Code estático possua o dado <TxId> preenchido, o campo transactionIdentification deverá ser preenchido com este valor, caso o QR Code não possua o <TxId> o campo transactionIdentification não deverá ser preenchido. O <TxId> deve conter até 25 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      * QRDN - Será obrigatório seu preenchimento com o <TxId> do payload JSON do QR Code dinâmico. O <TxId> deve conter entre 26 e 35 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      A detentora de conta deve validar se a condicionalidade e o formato do campo foram atendidas pela iniciadora de pagamento.
+                  qrCode: 
+                    type: "string"
+                    maxLength: 512
+                    pattern: '[\w\W\s]*'
+                    example: 00020104141234567890123426660014BR.GOV.BCB.PIX014466756C616E6F32303139406578616D706C652E636F6D27300012 BR.COM.OUTRO011001234567895204000053039865406123.455802BR5915NOMEDORECEBEDOR6008BRASILIA61087007490062 530515RP12345678-201950300017BR.GOV.BCB.BRCODE01051.0.080450014BR.GOV.BCB.PIX0123PADRAO.URL.PIX/0123AB CD81390012BR.COM.OUTRO01190123.ABCD.3456.WXYZ6304EB76
+                    description: | 
+                     Sequência de caracteres que corresponde ao QR Code disponibilizado para o pagador. 
+                     É a sequência de caracteres que seria lida pelo leitor de QR Code, 
+                     e deve propiciar o retorno dos dados do pagador após consulta na DICT. 
+                     Essa funcionalidade é possível tanto para QR Code estático quanto para QR Code dinâmico. 
+                     No arranjo do Pix esta é a mesma sequência gerada e/ou lida pela 
+                     funcionalidade Pix Copia e Cola. Este campo deverá ser no formato UTF-8. 
+                     [Restrição] Preenchimento obrigatório para pagamentos por QR Code, observado o tamanho máximo de 512 bytes.
+                type: "object"
+        links: 
+          required: 
+            - "self"
+            - "first"
+            - "prev"
+            - "next"
+            - "last"
+          properties: 
+            self: 
+              type: "string"
+              example: "https://api.banco.com.br/open-banking/api/v1/resource"
+            first: 
+              type: "string"
+              example: "https://api.banco.com.br/open-banking/api/v1/resource"
+            prev: 
+              type: "string"
+              example: "https://api.banco.com.br/open-banking/api/v1/resource"
+            next: 
+              type: "string"
+              example: "https://api.banco.com.br/open-banking/api/v1/resource"
+            last: 
+              type: "string"
+              example: "https://api.banco.com.br/open-banking/api/v1/resource"
+          type: "object"
+        meta: 
+          required: 
+            - "totalRecords"
+            - "totalPages"
+            - "requestDateTime"
+          properties: 
+            totalRecords: 
+              type: "number"
+              example: 1
+            totalPages: 
+              type: "number"
+              example: 1
+            requestDateTime: 
+              type: "string"
+              example: "2021-05-21T08:30:00Z"
+          type: "object"
+    BatchConsentsCreditorRequest:
+      required: 
+        - "data"
+      properties: 
+        data: 
+          type: "array"
+          items: 
+            type: "object"
+            required: 
+              -  creditorId
+              - personType
+              - cpfCnpj
+              - name
+              - payment
+            properties: 
+              creditorId: 
+                type: "string"
+                format: "uuid"
+                example: "61709a24-be94-4401-88cb-e457cbe13808"
+                description: | 
+                  Identificador único do usuário recebedor. Será utilizado no pagamento para
+                  informar quais os parâmetros de pagamento relacionados a cada ordem de um lote"
+              personType: 
+                type: "string"
+                example: "PESSOA_JURIDICA"
+                enum: 
+                 - PESSOA_NATURAL
+                 - PESSOA_JURIDICA
+                description: "Tipo de titular, pessoa natural ou juridica a quem se referem os dados de recebedor (creditor)."
+              cpfCnpj: 
+                type: "string"
+                minLength: 11
+                maxLength: 14
+                pattern: ^\d{11}$|^\d{14}$
+                example: "58764789000137"
+                description: |
+                  Identificação da pessoa envolvida na transação.
+                  Preencher com o CPF ou CNPJ, de acordo com o valor escolhido no campo type.
+                  O CPF será utilizado com 11 números e deverá ser informado sem pontos ou traços.
+                  O CNPJ será utilizado com 14 números e deverá ser informado sem pontos ou traços.
+              name: 
+                type: "string"
+                pattern: ^([A-Za-zÀ-ÖØ-öø-ÿ,.@:&*+_<>()!?/\\$%\d' -]+)$
+                maxLength: 120
+                example: Marco Antonio de Brito
+                description: |
+                  Em caso de pessoa natural deve ser informado o nome completo do titular da conta do recebedor.
+                  Em caso de pessoa jurídica deve ser informada a razão social ou o nome fantasia da conta do recebedor.
+              listed: 
+                type: "boolean"
+                example: true
+                description: "Indica se o recebedor deve ser listado no extrato do cliente pagador"
+              payment: 
+                required: 
+                  - "type"
+                  - "localInstrument"
+                  - "currency"
+                  - "amount"
+                properties: 
+                  type: 
+                    type: "string"
+                    example: "PIX"
+                    description: "Este campo define o tipo de pagamento que será iniciado após a autorização do consentimento."
+                    enum: 
+                     - PIX
+                  localInstrument: 
+                    type: "string"
+                    example: "QRDN"
+                    enum:
+                     - MANU
+                     - DICT
+                     - INIC
+                     - QRDN
+                    description: |
+                     Especifica a forma de iniciação do pagamento:
+                      * MANU - Inserção manual de dados da conta transacional
+                      * DICT - Inserção manual de chave Pix
+                      * QRDN - QR code dinâmico
+                      * INIC - Indica que o recebedor (creditor) contratou o Iniciador de Pagamentos especificamente para realizar iniciações de pagamento em que o beneficiário é previamente conhecido.
+                  currency: 
+                    type: "string"
+                    maxLength: 3
+                    pattern: ^([A-Z]{3})$
+                    example: BRL
+                    description: |
+                      Código da moeda nacional segundo modelo ISO-4217, ou seja, 'BRL'. 
+                      Todos os valores monetários informados estão representados com a moeda vigente do Brasil.
+                  amount: 
+                    type: "string"
+                    example: "100000.12"
+                    minLength: 4
+                    maxLength: 19
+                    pattern: ^((\d{1,16}\.\d{2}))$
+                    description: Valor da transação com 2 casas decimais.
+                  creditorAccount: 
+                    description: Objeto que contém a identificação da conta de destino do beneficiário/recebedor.
+                    required: 
+                      - "ispb"
+                      - "issuer"
+                      - "number"
+                      - "accountType"
+                    properties: 
+                      ispb: 
+                        type: "string"
+                        minLength: 8
+                        maxLength: 8
+                        pattern: ^[0-9]{8}$
+                        example: "12345678"
+                        description: | 
+                          Deve ser preenchido com o ISPB (Identificador do Sistema de Pagamentos Brasileiros) 
+                          do participante do SPI (Sistema de pagamentos instantâneos) somente com números.
+                      issuer: 
+                        type: "string"
+                        minLength: 1
+                        maxLength: 4
+                        pattern: ^[0-9]{1,4}$
+                        example: "1774"
+                        description: | 
+                          Código da Agência emissora da conta sem dígito. (Agência é a dependência destinada 
+                          ao atendimento aos clientes, ao público em geral e aos associados de cooperativas
+                            de crédito, no exercício de atividades da instituição, não podendo ser móvel ou transitória).
+                          [Restrição] Preenchimento obrigatório para os seguintes tipos de conta: 
+                          * CACC (CONTA_DEPOSITO_A_VISTA) 
+                          * SVGS (CONTA_POUPANCA).
+                      number: 
+                        type: "string"
+                        example: "1234567890"
+                        minLength: 1
+                        maxLength: 20
+                        pattern: ^[0-9]{1,20}$
+                        description: |
+                          Deve ser preenchido com o número da conta transacional do usuário pagador, com dígito 
+                          verificador (se este existir), se houver valor alfanumérico, este deve ser convertido para 0.
+                      accountType: 
+                        type: "string"
+                        example: "CACC"
+                        description: |
+                          Tipos de contas usadas para pagamento. Modalidades tradicionais previstas pela Resolução 4.753, não contemplando contas vinculadas, conta de domiciliados no exterior, contas em moedas estrangeiras e conta correspondente moeda eletrônica.
+                          Segue descrição de cada valor do ENUM.
+
+                          * CACC - Current - Conta Corrente.
+                          * SVGS - Savings - Conta de Poupança.
+                          * TRAN - TransactingAccount - Conta de Pagamento pré-paga.
+                        enum: 
+                          - CACC
+                          - SVGS
+                          - TRAN
+                    type: "object"
+                  proxy: 
+                    maxLength: 77
+                    pattern: '[\w\W\s]*'
+                    example: "12345678901"
+                    type: "string"
+                    description: |
+                      Chave cadastrada no DICT pertencente ao recebedor. Os tipos de chaves
+                       podem ser: telefone, e-mail, cpf/cnpj ou chave aleatória. No caso de 
+                       telefone celular deve ser informado no padrão E.1641. Para e-mail deve 
+                       ter o formato xxxxxxxx@xxxxxxx.xxx(.xx) e no máximo 77 caracteres. 
+                       No caso de CPF deverá ser informado com 11 números, sem pontos ou traços. 
+                       Para o caso de CNPJ deverá ser informado com 14 números, sem pontos ou traços. 
+                       No caso de chave aleatória deve ser informado o UUID gerado pelo DICT, 
+                       conforme formato especificado na RFC41223. Se informado, a detentora 
+                       da conta deve validar o proxy no DICT quando localInstrument for igual 
+                       a DICT, QRDN ou QRES e validar o campo creditorAccount. Esta validação 
+                       é opcional caso o localInstrument for igual a INIC. 
+                       [Restrição] Se localInstrument for igual a MANU, o campo proxy não deve ser preenchido. Se localInstrument for igual INIC, DICT ou QRDN, o campo proxy deve ser sempre preenchido com a chave Pix.
+                  transactionIdentification: 
+                    type: "string"
+                    pattern: ^[a-zA-Z0-9]{1,35}$
+                    maxLength: 35
+                    example: E00038166201907261559y6j6
+                    description: |
+                      Trata-se de um identificador de transação que deve ser retransmitido intacto pelo PSP do pagador ao gerar a ordem de pagamento. Essa informação permitirá ao recebedor identificar e correlacionar a transferência, quando recebida, com a apresentação das instruções ao pagador. Os caracteres permitidos no contexto do Pix para o campo txid (EMV 62-05) são:
+
+                      * Letras minúsculas, de 'a' a 'z'
+                      * Letras maiúsculas, de 'A' a 'z'
+                      * Dígitos decimais, de '0' a '9'
+                      
+                      [Restrição] Preenchimento condicional de acordo com o conteúdo do campo localInstument:
+                      * MANU - O campo transactionIdentification não deve ser preenchido.
+                      * DICT - O campo transactionIdentification não deve ser preenchido.
+                      * INIC - O campo transactionIdentification deve ser preenchido obrigatoriamente e deve conter até 25 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      * QRES - Caso o QR Code estático possua o dado <TxId> preenchido, o campo transactionIdentification deverá ser preenchido com este valor, caso o QR Code não possua o <TxId> o campo transactionIdentification não deverá ser preenchido. O <TxId> deve conter até 25 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      * QRDN - Será obrigatório seu preenchimento com o <TxId> do payload JSON do QR Code dinâmico. O <TxId> deve conter entre 26 e 35 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                      A detentora de conta deve validar se a condicionalidade e o formato do campo foram atendidas pela iniciadora de pagamento.
+                  qrCode: 
+                    type: "string"
+                    maxLength: 512
+                    pattern: '[\w\W\s]*'
+                    example: 00020104141234567890123426660014BR.GOV.BCB.PIX014466756C616E6F32303139406578616D706C652E636F6D27300012 BR.COM.OUTRO011001234567895204000053039865406123.455802BR5915NOMEDORECEBEDOR6008BRASILIA61087007490062 530515RP12345678-201950300017BR.GOV.BCB.BRCODE01051.0.080450014BR.GOV.BCB.PIX0123PADRAO.URL.PIX/0123AB CD81390012BR.COM.OUTRO01190123.ABCD.3456.WXYZ6304EB76
+                    description: | 
+                     Sequência de caracteres que corresponde ao QR Code disponibilizado para o pagador. 
+                     É a sequência de caracteres que seria lida pelo leitor de QR Code, 
+                     e deve propiciar o retorno dos dados do pagador após consulta na DICT. 
+                     Essa funcionalidade é possível tanto para QR Code estático quanto para QR Code dinâmico. 
+                     No arranjo do Pix esta é a mesma sequência gerada e/ou lida pela 
+                     funcionalidade Pix Copia e Cola. Este campo deverá ser no formato UTF-8. 
+                     [Restrição] Preenchimento obrigatório para pagamentos por QR Code, observado o tamanho máximo de 512 bytes.
+                type: "object"
+    ResponseBodyBatchPixPayment:
+      required: 
+        - "data"
+        - "links"
+        - "meta"
+      properties: 
+        data: 
+          type: "array"
+          items: 
+            type: "object"
+            properties: 
+              paymentId: 
+                type: "string"
+                example: "TXpRMU9UQTROMWhZV2xSU1FUazJSMDl"
+                description: Código ou identificador único informado pela instituição detentora da conta para representar a iniciação de pagamento. O paymentId deve ser diferente do endToEndId. Este é o identificador que deverá ser utilizado na consulta ao status e cancelamento da iniciação de pagamento efetuada.
+                maxLength: 100
+                pattern: ^[a-zA-Z0-9][a-zA-Z0-9\-]{0,99}$
+              creditorId: 
+                type: "string"
+                example: "61709a24-be94-4401-88cb-e457cbe13808"
+                format: uuid
+                description: Identificador único do usuário recebedor. Será utilizado no pagamento para informar quais os parâmetros de pagamento relacionados a cada ordem de um lote"
+              endToEndId: 
+                type: "string"
+                example: "E9040088820210128000800123873170"
+                minLength: 32
+                maxLength: 32
+                pattern: ^([E])([0-9]{8})([0-9]{4})(0[1-9]|1[0-2])(0[1-9]|[1-2][0-9]|3[0-1])(2[0-3]|[01][0-9])([0-5][0-9])([a-zA-Z0-9]{11})$
+                description: |
+                  Deve ser preenchido no formato padrão ExxxxxxxxyyyyMMddHHmmkkkkkkkkkkk (32 caracteres; “case sensitive”, isso é, diferencia letras maiúsculas e minúsculas), sendo:
+                  *“E” - fixo (1 caractere);
+                  *xxxxxxxx - identificação do agente que gerou o 'EndToEndId', podendo ser: o ISPB do participante direto ou o ISPB do participante indireto (8 caracteres numéricos [0-9]);
+                  *yyyyMMddHHmm - data, hora e minuto (12 caracteres), seguindo o horário UTC, da submissão da ordem de pagamento, caso a liquidação seja prioritária, ou prevista para o envio da ordem ao sistema de liquidação, caso seja realizado um agendamento. Para ordens prioritárias e não prioritárias, aceita-se o preenchimento, pelo agente que gerou o 'EndToEndId', com uma tolerância máxima de 12 horas, para o futuro e para o passado, em relação ao horário efetivo de processamento da ordem pelo SPI;
+                  *kkkkkkkkkkk - sequencial criado pelo agente que gerou o 'EndToEndId' (11 caracteres alfanuméricos [a-z/A-Z/0-9]). Deve ser único dentro de cada “yyyyMMddHHmm”.
+                  Admite-se que o 'EndToEndId' seja gerado pelo participante direto, pelo participante indireto ou pelo iniciador de pagamento.
+                  Ele deve ser único, não podendo ser repetido em qualquer outra operação enviada ao SPI.
+                  No caso de Pix agendamento, a iniciadora deverá, no que tange a composição do endToEndId, utilizar a data para a qual o Pix está sendo agendado e horário fixo 15:00 UTC, que dará para a detentora a janela de efetivação de 00:00 e 23:59 do horário de Brasília.
+              remittanceInformation: 
+                type: "string"
+                example: "Pagamento da nota XPTO035-002."
+                description: Deve ser preenchido sempre que o usuário pagador inserir alguma informação adicional em um pagamento, a ser enviada ao recebedor.
+                maxLength: 140
+                pattern: '[\w\W\s]*'
+              creationDateTime: 
+                type: "string"
+                example: "2020-07-21T08:30:00Z"
+                description: Data e hora em que o recurso foi criado. Uma string com data e hora conforme especificação RFC-3339, sempre com a utilização de timezone UTC(UTC time format).
+                pattern: ^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])T(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)Z$
+              statusUpdateDateTime: 
+                type: "string"
+                example: "2020-07-21T08:30:00Z"
+                description: Data e hora em que o recurso foi criado. Uma string com data e hora conforme especificação RFC-3339, sempre com a utilização de timezone UTC(UTC time format).
+                pattern: ^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])T(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)Z$
+              status: 
+                type: "string"
+                example: "PDNG"
+                description: Estado atual da iniciação de pagamento.
+              rejectionReason:
+                description: |
+                  Motivo da rejeição do pagamento. Informações complementares sobre o motivo do status [Restrição] Esse motivo deverá ser enviado quando o campo /data/status for igual a RJCT (REJECTED). 
+                required: 
+                  - "code"
+                  - "detail"
+                properties: 
+                  code: 
+                    type: "string"
+                    example: "SALDO_INSUFICIENTE"
+                    description: Define o código da razão pela qual o pagamento foi rejeitado
+                  detail: 
+                    type: "string"
+                    description: Contém informações adicionais ao pagamento rejeitado
+                    example: "string"
+                type: "object"
+        links: 
+          required: 
+            - "self"
+            - "first"
+            - "prev"
+            - "next"
+            - "last"
+          properties: 
+            self: 
+              type: "string"
+              example: "https://api.banco.com.br/open-banking/api/v1/resource"
+            first: 
+              type: "string"
+              example: "https://api.banco.com.br/open-banking/api/v1/resource"
+            prev: 
+              type: "string"
+              example: "https://api.banco.com.br/open-banking/api/v1/resource"
+            next: 
+              type: "string"
+              example: "https://api.banco.com.br/open-banking/api/v1/resource"
+            last: 
+              type: "string"
+              example: "https://api.banco.com.br/open-banking/api/v1/resource"
+          type: "object"
+        meta: 
+          required: 
+            - "totalRecords"
+            - "totalPages"
+            - "requestDateTime"
+          properties: 
+            totalRecords: 
+              type: "number"
+              example: 1
+            totalPages: 
+              type: "number"
+              example: 1
+            requestDateTime: 
+              type: "string"
+              example: "2021-05-21T08:30:00Z"
+          type: "object"      
+    XFapiInteractionId:
+      type: string
+      pattern: '^[a-zA-Z0-9][a-zA-Z0-9\-]{0,99}$'
+      maxLength: 100
+      description: 'Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.'
+  parameters:
+    consentId:
+      name: consentId
+      in: query
+      description: |
+        O `consentId` é o identificador único do consentimento e deverá ser um URN - Uniform Resource Name.  
+        Um URN, conforme definido na [RFC8141](https://tools.ietf.org/html/rfc8141) é um Uniform Resource 
+        Identifier - URI - que é atribuído sob o URI scheme "urn" e um namespace URN específico, com a intenção de que o URN 
+        seja um identificador de recurso persistente e independe da localização.  
+        Considerando a string urn:bancoex:C1DD33123 como exemplo para `consentId` temos:
+        - o namespace(urn)
+        - o identificador associado ao namespace da instituição detentora (bancoex).
+        - o identificador específico dentro do namespace (C1DD33123).  
+        Informações mais detalhadas sobre a construção de namespaces devem ser consultadas na [RFC8141](https://tools.ietf.org/html/rfc8141).
+      required: true
+      schema:
+        type: string
+        pattern: '^urn:[a-zA-Z0-9][a-zA-Z0-9\-]{0,31}:[a-zA-Z0-9()+,\-.:=@;$_!*''%\/?#]+$'
+        minLength: 1
+        maxLength: 256
+    pathConsentId:
+      name: consentId
+      in: path
+      description: |
+        O `consentId` é o identificador único do consentimento e deverá ser um URN - Uniform Resource Name.  
+        Um URN, conforme definido na [RFC8141](https://tools.ietf.org/html/rfc8141) é um Uniform Resource 
+        Identifier - URI - que é atribuído sob o URI scheme "urn" e um namespace URN específico, com a intenção de que o URN 
+        seja um identificador de recurso persistente e independe da localização.  
+        Considerando a string urn:bancoex:C1DD33123 como exemplo para `consentId` temos:
+        - o namespace(urn)
+        - o identificador associado ao namespace da instituição detentora (bancoex).
+        - o identificador específico dentro do namespace (C1DD33123).  
+        Informações mais detalhadas sobre a construção de namespaces devem ser consultadas na [RFC8141](https://tools.ietf.org/html/rfc8141).
+      required: true
+      schema:
+        type: string
+        pattern: '^urn:[a-zA-Z0-9][a-zA-Z0-9\-]{0,31}:[a-zA-Z0-9()+,\-.:=@;$_!*''%\/?#]+$'
+        minLength: 1
+        maxLength: 256
+    pathBatchPaymentId:
+      name: batchPaymentId
+      in: query
+      description: Identificador da operação de pagamento.
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\-]{0,99}$'
+        minLength: 1
+        maxLength: 100
+    startDate:
+      name: startDate
+      in: query
+      description: Data inicial de corte da ocorrência do pagamento ligada ao consentimento de longa duração.
+      required: false
+      schema:
+        type: string
+        pattern: '^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])$'
+        minLength: 10
+        maxLength: 10
+    endDate:
+      name: endDate
+      in: query
+      description: Data final de corte para recuperação da ocorrência do pagamento ligada ao consentimento de longa duração.
+      required: false
+      schema:
+        type: string
+        pattern: '^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])$'
+        minLength: 10
+        maxLength: 10
+    Authorization:
+      name: Authorization
+      in: header
+      description: Cabeçalho HTTP padrão. Permite que as credenciais sejam fornecidas dependendo do tipo de recurso solicitado
+      required: true
+      schema:
+        type: string
+        pattern: '[\w\W\s]*'
+        minLength: 1
+        maxLength: 2048
+    xCustomerUserAgent:
+      name: x-customer-user-agent
+      in: header
+      description: Indica o user-agent que o usuário utiliza.
+      required: false
+      schema:
+        type: string
+        pattern: '[\w\W\s]*'
+        minLength: 1
+        maxLength: 100
+    xFapiAuthDate:
+      name: x-fapi-auth-date
+      in: header
+      description: 'Data em que o usuário logou pela última vez com o iniciador. Representada de acordo com a [RFC7231](https://tools.ietf.org/html/rfc7231).Exemplo: Sun, 10 Sep 2017 19:43:31 UTC'
+      required: false
+      schema:
+        type: string
+        pattern: '^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} (GMT|UTC)$'
+        minLength: 29
+        maxLength: 29
+    xFapiCustomerIpAddress:
+      name: x-fapi-customer-ip-address
+      in: header
+      description: O endereço IP do usuário se estiver atualmente logado com o iniciador.
+      required: false
+      schema:
+        type: string
+        pattern: '[\w\W\s]*'
+        minLength: 1
+        maxLength: 100
+    xFapiInteractionId:
+      name: x-fapi-interaction-id
+      in: header
+      description: 'Um UID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.'
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\-]{0,99}$'
+        minLength: 1
+        maxLength: 100
+    xFapiInteractionIdUUID:
+      name: x-fapi-interaction-id
+      in: header
+      description: 'Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.'
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-zA-Z0-9][a-zA-Z0-9\-]{0,99}$'
+        minLength: 1
+        maxLength: 100
+    XIdempotencyKey:
+      name: x-idempotency-key
+      in: header
+      description: Cabeçalho HTTP personalizado. Identificador de solicitação exclusivo para suportar a idempotência.
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 40
+        pattern: ^(?!\s)(.*)(\S)$
+  securitySchemes:
+    OAuth2ClientCredentials:
+      type: oauth2
+      description: |
+        Fluxo OAuth necessário para que a iniciadora possa iniciar pagamentos. Requer o processo de redirecionamento e autenticação do usuário.  
+        Apenas pagamentos iniciados pela mesma iniciadora de pagamentos podem ser consultados ou cancelados através de modelo client credentials.
+      flows:
+        clientCredentials:
+          tokenUrl: 'https://authserver.example/token'
+          scopes:
+            recurringPayments: Escopo necessário para acesso à API Automatic Payments.
+    OAuth2AuthorizationCode:
+      type: oauth2
+      description: Fluxo OAuth necessário para que a iniciadora possa iniciar pagamentos. Requer o processo de redirecionamento e autenticação do usuário.
+      flows:
+        authorizationCode:
+          authorizationUrl: 'https://authserver.example/token'
+          tokenUrl: 'https://authserver.example/token'
+          scopes:
+            recurringPayments: Escopo necessário para acesso à API Automatic Payments.
+            openid: Indica que a autorização está sendo realizada utilizando o protocolo definido pela openid.
+            'recurringConsent:recurringConsentId': Escopo contendo o identificador único do consentimento criado para a iniciação de pagamento solicitada
+    NonRedirectAuthorizationCode:
+      type: oauth2
+      flows: 
+        authorizationCode:
+          authorizationUrl: 'https://authserver.example/token'
+          tokenUrl: 'https://authserver.example/token'
+          scopes:
+            recurringPayments: Escopo necessário para acesso à API Automatic Payments.
+            openid: Indica que a autorização está sendo realizada utilizando o protocolo definido pela openid.
+            'enrollment:enrollmentId': Permite realizar atualização de um registro com a permissão do cliente.
+            nrp-consents: Consentimento para pagamentos sem redirecionamento.
+  responses:
+    BadRequest:
+      description: 'A requisição foi malformada, omitindo atributos obrigatórios, seja no payload ou através de atributos na URL.'
+      content:
+        application/json; charset=utf-8:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    BadRequestPaymentsConsents:
+      description: 'A requisição foi malformada, omitindo atributos obrigatórios, seja no payload ou através de atributos na URL'
+      content:
+        application/json; charset=utf-8:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    Forbidden:
+      description: O token tem escopo incorreto ou uma política de segurança foi violada
+      content:
+        application/json; charset=utf-8:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    InternalServerError:
+      description: Ocorreu um erro no gateway da API ou no microsserviço
+      content:
+        application/json; charset=utf-8:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    GatewayTimeoutWithAdditionalProperties:
+      description: A requisição não foi atendida dentro do tempo limite estabelecido
+      content:
+        application/json; charset=utf-8:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    MethodNotAllowed:
+      description: O consumidor tentou acessar o recurso com um método não suportado
+      content:
+        application/json; charset=utf-8:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    NotAcceptable:
+      description: A solicitação continha um cabeçalho Accept diferente dos tipos de mídia permitidos ou um conjunto de caracteres diferente de UTF-8
+      content:
+        application/json; charset=utf-8:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    NotFound:
+      description: O recurso solicitado não existe ou não foi implementado
+      content:
+        application/json; charset=utf-8:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    SiteIsOverloaded:
+      description: 'O site está sobrecarregado e a operação foi recusada, pois foi atingido o limite máximo de TPS global, neste momento.'
+      content:
+        application/json; charset=utf-8:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+    UnprocessableEntityPixRecurringPayment:
+      description: 'A solicitação foi bem formada, mas não pôde ser processada devido à lógica de negócios específica da solicitação.'
+      content:
+        application/jwt:
+          schema:
+            $ref: '#/components/schemas/422ResponseErrorCreatePixRecurringPayment'
+          examples:
+            Saldo insuficiente:
+              summary: Saldo insuficiente
+              value:
+                errors:
+                  - code: SALDO_INSUFICIENTE
+                    title: Saldo insuficiente.
+                    detail: A conta selecionada não possui saldo suficiente para realizar o pagamento.
+                meta:
+                  requestDateTime: '2021-05-21T08:30:00Z'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    UnprocessableEntityRecurringConsents:
+      description: Seguir as orientações presentes na descrição deste endpoint
+      content:
+        application/jwt:
+          schema:
+            $ref: '#/components/schemas/422ResponseErrorRecurringConsents'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    UnprocessableConsents:
+      description: Seguir as orientações presentes na descrição da API, item 1.3 do _header_ da API e seus subitens
+      content:
+        application/jwt:
+          schema:
+            $ref: '#/components/schemas/ResponseErrorCreateConsent'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    Unauthorized:
+      description: Cabeçalho de autenticação ausente/inválido ou token inválido
+      content:
+        application/json; charset=utf-8:
+          schema:
+            $ref: '#/components/schemas/ResponseError'
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+    ResponseConsent:
+      description: Objeto contendo as informações de consentimento para a iniciação de pagamento individual.
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+      content:
+        application/jwt:
+          schema:
+            required: 
+              - "data"
+              - "links"
+              - "meta"
+            properties: 
+              data: 
+                required: 
+                  - "consentId"
+                  - "loggedUser"
+                  - "businessEntity"
+                  - "creationDateTime"
+                  - "statusUpdateDateTime"
+                  - "description"
+                  - "status"
+                  - "reason"
+                  - "batchConfiguration"
+                  - "debtorAccount"
+                properties: 
+                  consentId: 
+                    type: "string"
+                    example: "08e57d3b-5cb5-478d-b150-b9e2dc63adec"
+                  loggedUser: 
+                    required: 
+                      - "document"
+                    properties: 
+                      document: 
+                        required: 
+                          - "identification"
+                          - "rel"
+                        properties: 
+                          identification: 
+                            type: "string"
+                            example: "11111111111"
+                          rel: 
+                            type: "string"
+                            example: "CPF"
+                        type: "object"
+                    type: "object"
+                  businessEntity: 
+                    required: 
+                      - "document"
+                    properties: 
+                      document: 
+                        required: 
+                          - "identification"
+                          - "rel"
+                        properties: 
+                          identification: 
+                            type: "string"
+                            example: "11111111111111"
+                          rel: 
+                            type: "string"
+                            example: "CNPJ"
+                        type: "object"
+                    type: "object"
+                  creationDateTime: 
+                    type: "string"
+                    example: "2024-03-13T12:00:00Z"
+                  statusUpdateDateTime: 
+                    type: "string"
+                    example: "2024-03-13T12:00:00Z"
+                  description: 
+                    type: "string"
+                    example: ""
+                  status: 
+                    type: "string"
+                    example: "AWAITING_AUTHORISATION"
+                  reason: 
+                    required: 
+                      - "code"
+                      - "detail"
+                    properties: 
+                      code: 
+                        type: "string"
+                        example: "REVOGADO_USUARIO"
+                      detail: 
+                        type: "string"
+                        example: "revogado no ambiente da iniciadora"
+                    type: "object"
+                  batchConfiguration: 
+                    type: "array"
+                    items: 
+                      type: "object"
+                      properties: 
+                        batchId: 
+                          type: "string"
+                          example: "914dea35-0ca8-4846-90ba-0a05f94cb261"
+                        status: 
+                          type: "string"
+                          example: "AWAITING_CONFIGURATION"
+                        type: 
+                          type: "string"
+                          example: "CONSOLIDATED | INDIVIDUAL"
+                        description: 
+                          type: "string"
+                          example: "batch imediato"
+                        total: 
+                          type: "number"
+                          example: 200
+                        batchValue: 
+                          type: "string"
+                          example: "39000.00"
+                        batchType: 
+                          type: "string"
+                          example: "IMEDIATE | SCHEDULE"
+                  debtorAccount: 
+                    required: 
+                      - "ispb"
+                      - "issuer"
+                      - "number"
+                      - "accountType"
+                    properties: 
+                      ispb: 
+                        type: "string"
+                        example: "12345678"
+                      issuer: 
+                        type: "string"
+                        example: "0001"
+                      number: 
+                        type: "string"
+                        example: "12345456"
+                      accountType: 
+                        type: "string"
+                        example: "CACC"
+                    type: "object"
+                type: "object"
+              links: 
+                required: 
+                  - "self"
+                properties: 
+                  self: 
+                    type: "string"
+                    example: "https://api.banco.com.br/openbanking/batch-payments/v1/batch-consents/{consentId}"
+                type: "object"
+              meta: 
+                required: 
+                  - "requestDateTime"
+                properties: 
+                  requestDateTime: 
+                    type: "string"
+                    example: "2021-05-21T08:30:00Z"
+                type: "object"            
+    ResponseConsentCreditor:
+      description: Objeto contendo as informações de recebores para a iniciação de pagamento em lote.
+      headers:
+        x-fapi-interaction-id:
+          description: |
+           Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+      content:
+        application/jwt:
+          schema:
+            $ref: "#/components/schemas/ResponseBatchConsentCreditors"
+    ResponseBatchPixPayment:
+      description: Dados de iniciação de pagamento Pix obtidos com sucesso.
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+      content:
+        application/jwt:
+          schema:
+            $ref: '#/components/schemas/ResponseBodyBatchPixPayment'
