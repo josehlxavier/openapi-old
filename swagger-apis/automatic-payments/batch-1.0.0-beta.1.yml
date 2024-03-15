@@ -1458,11 +1458,11 @@ components:
       name: consentId
       in: query
       description: |
-        O `recurringConsentId` é o identificador único do consentimento de longa duração e deverá ser um URN - Uniform Resource Name.  
+        O `consentId` é o identificador único do consentimento e deverá ser um URN - Uniform Resource Name.  
         Um URN, conforme definido na [RFC8141](https://tools.ietf.org/html/rfc8141) é um Uniform Resource 
         Identifier - URI - que é atribuído sob o URI scheme "urn" e um namespace URN específico, com a intenção de que o URN 
         seja um identificador de recurso persistente e independe da localização.  
-        Considerando a string urn:bancoex:C1DD33123 como exemplo para `recurringConsentId` temos:
+        Considerando a string urn:bancoex:C1DD33123 como exemplo para `consentId` temos:
         - o namespace(urn)
         - o identificador associado ao namespace da instituição detentora (bancoex).
         - o identificador específico dentro do namespace (C1DD33123).  
@@ -1477,11 +1477,11 @@ components:
       name: consentId
       in: path
       description: |
-        O `recurringConsentId` é o identificador único do consentimento de longa duração e deverá ser um URN - Uniform Resource Name.  
+        O `consentId` é o identificador único do consentimento e deverá ser um URN - Uniform Resource Name.  
         Um URN, conforme definido na [RFC8141](https://tools.ietf.org/html/rfc8141) é um Uniform Resource 
         Identifier - URI - que é atribuído sob o URI scheme "urn" e um namespace URN específico, com a intenção de que o URN 
         seja um identificador de recurso persistente e independe da localização.  
-        Considerando a string urn:bancoex:C1DD33123 como exemplo para `recurringConsentId` temos:
+        Considerando a string urn:bancoex:C1DD33123 como exemplo para `consentId` temos:
         - o namespace(urn)
         - o identificador associado ao namespace da instituição detentora (bancoex).
         - o identificador específico dentro do namespace (C1DD33123).  
