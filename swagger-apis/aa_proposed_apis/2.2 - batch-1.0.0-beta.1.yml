@@ -144,7 +144,7 @@ paths:
       security:
         - OAuth2ClientCredentials:
             - recurringPayments
-  "/batch-consents/{consentId}/batch-management/{batchId}":
+  '/batch-consents/{consentId}/batch-management/{batchId}':
     post:
       tags:
         - Consents
@@ -378,6 +378,7 @@ paths:
             - recurringPayments
             - 'enrollment:enrollmentId'
             - nrp-consents
+  "/payments/{paymentId}":
     get:
       tags:
         - Batch Payments
@@ -392,9 +393,7 @@ paths:
         - $ref: '#/components/parameters/xFapiAuthDate'
         - $ref: '#/components/parameters/xFapiCustomerIpAddress'
         - $ref: '#/components/parameters/xFapiInteractionId'
-        - $ref: '#/components/parameters/consentId'
-        - $ref: '#/components/parameters/startDate'
-        - $ref: '#/components/parameters/endDate'
+        - $ref: '#/components/parameters/pathBatchPaymentId'
       responses:
         '200':
           $ref: '#/components/responses/ResponseBatchPixPayment'
@@ -442,7 +441,7 @@ paths:
         content:
           application/jwt:
             schema:
-              $ref: '#/components/schemas/CreatePixBatchPayment'
+              $ref: '#/components/schemas/PatchPixBatchPayment'
       responses:
         '200':
           $ref: '#/components/responses/ResponseBatchPixPayment'
@@ -472,7 +471,7 @@ paths:
                 $ref: '#/components/schemas/ResponseError'
       security:
         - OAuth2ClientCredentials:
-            - recurringPayments
+            - recurringPayments     
 components:
   schemas:
     ResponseErrorCreateConsent:
@@ -697,18 +696,28 @@ components:
                   required: 
                     - "identification"
                     - "rel"
+                  description: |
+                    Usuário (pessoa natural) que encontra-se logado na instituição Iniciadora de Pagamento.
                   properties: 
                     identification: 
                       type: "string"
+                      description: Número do documento de identificação oficial do usuário.
+                      maxLength: 11
                       example: "11111111111"
+                      pattern: ^\d{11}$
                     rel: 
                       type: "string"
-                      example: "CPF"
+                      maxLength: 3
+                      description: Tipo do documento de identificação oficial do usuário.
+                      example: CPF
+                      pattern: ^[A-Z]{3}$
                   type: "object"
               type: "object"
             businessEntity: 
               required: 
                 - "document"
+              description: |
+                Usuário (pessoa jurídica) que encontra-se logado na instituição Iniciadora de Pagamento. [Restrição] Preenchimento obrigatório se usuário logado na instituição Iniciadora de Pagamento for um CNPJ (pessoa jurídica).
               properties: 
                 document: 
                   required: 
@@ -717,14 +726,21 @@ components:
                   properties: 
                     identification: 
                       type: "string"
+                      description: Número do documento de identificação oficial do titular pessoa jurídica.
+                      maxLength: 14
+                      pattern: ^\d{14}$
                       example: "11111111111111"
                     rel: 
                       type: "string"
                       example: "CNPJ"
+                      maxLength: 4
+                      description: Tipo do documento de identificação oficial do titular pessoa jurídica.
+                      pattern: ^[A-Z]{4}$
                   type: "object"
               type: "object"
             status: 
               type: "string"
+              description: Retorna o estado do consentimento, o qual no momento de sua criação será AWAITING_AUTHORISATION.
               example: "AWAITING_AUTHORISATION"
               enum:
                 - AWAITING_AUTHORISATION
@@ -740,38 +756,69 @@ components:
                 properties: 
                   type: 
                     type: "string"
-                    example: "CONSOLIDATED | INDIVIDUAL"
+                    example: "INDIVIDUAL"
+                    enum: 
+                      - CONSOLIDATED
+                      - INDIVIDUAL
+                    description: Determina a maneira de descriminação dos valores no extrato do pagador
                   description: 
                     type: "string"
+                    pattern: '[\w\W\s]*'
                     example: "batch imediato"
                   total: 
                     type: "number"
                     example: 200
+                    description: Quantidade de recebedores que estarão presentes no lote
                   batchValue: 
                     type: "string"
                     example: "39000.00"
+                    description: Somatorio dos valores a serem pagos para todos os recebedores
                   batchType: 
                     type: "string"
                     example: "IMEDIATE"
+                    description: Determina se o pagamento é imediato ou agendado.
             debtorAccount: 
               required: 
                 - "ispb"
-                - "issuer"
                 - "number"
                 - "accountType"
               properties: 
                 ispb: 
                   type: "string"
                   example: "12345678"
+                  minLength: 8
+                  maxLength: 8
+                  pattern: ^[0-9]{8}$
+                  description: Deve ser preenchido com o ISPB (Identificador do Sistema de Pagamentos Brasileiros) do participante do SPI (Sistema de pagamentos instantâneos) somente com números.
                 issuer: 
+                  description: |
+                    Código da Agência emissora da conta sem dígito. (Agência é a dependência destinada ao atendimento aos clientes, ao público em geral e aos associados de cooperativas de crédito, no exercício de atividades da instituição, não podendo ser móvel ou transitória). 
+                    [Restrição] Preenchimento obrigatório para os seguintes tipos de conta: CACC (CONTA_DEPOSITO_A_VISTA) e SVGS (CONTA_POUPANCA).
                   type: "string"
                   example: "0001"
+                  minLength: 1
+                  maxLength: 4
+                  pattern: ^[0-9]{1,4}$
                 number: 
                   type: "string"
                   example: "12345456"
+                  minLength: 1
+                  maxLength: 20
+                  pattern: ^[0-9]{1,20}$
+                  description: Deve ser preenchido com o número da conta do usuário recebedor, com dígito verificador (se este existir), se houver valor alfanumérico, este deve ser convertido para 0.
                 accountType: 
+                  description: |
+                    Tipos de contas usadas para pagamento. Modalidades tradicionais previstas pela Resolução 4.753, não contemplando contas vinculadas, conta de domiciliados no exterior, contas em moedas estrangeiras e conta correspondente moeda eletrônica. Segue descrição de cada valor do ENUM.
+
+                    * CACC - Current - Conta Corrente.
+                    * SVGS - Savings - Conta de Poupança.
+                    * TRAN - TransactingAccount - Conta de Pagamento pré-paga.
                   type: "string"
                   example: "CACC"
+                  enum:
+                    - CACC
+                    - SVGS
+                    - TRAN
               type: "object"
           type: "object"
     CreatePixBatchPayment:
@@ -781,6 +828,45 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/CreatePixBatchPaymentData'
+    PatchPixBatchPayment:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/PatchPixBatchPaymentData'
+    PatchPixBatchPaymentData:
+      required: 
+        - "status"
+        - "cancellation"
+      properties: 
+        status: 
+          type: "string"
+          example: "CANC"
+        cancellation: 
+          required: 
+            - "cancelledBy"
+          properties: 
+            cancelledBy: 
+              required: 
+                - "document"
+              properties: 
+                document: 
+                  required: 
+                    - "identification"
+                    - "rel"
+                  properties: 
+                    identification: 
+                      type: "string"
+                      example: "11111111111"
+                    rel: 
+                      type: "string"
+                      example: "CPF"
+                  type: "object"
+              type: "object"
+          type: "object"
+      type: "object"
+
     CreatePixBatchPaymentData:
       required: 
         - "batchId"
@@ -1085,15 +1171,235 @@ components:
       properties: 
         data: 
           required: 
+            - "paymentId"
             - "batchId"
+            - "endToEndId"
+            - "date"
+            - "creationDateTime"
+            - "statusUpdateDateTime"
             - "status"
+            - "payment"
+            - "debtorAccount"
+            - "localInstrument"
           properties: 
+            paymentId:
+              type: string
+              minLength: 1
+              maxLength: 100
+              pattern: '^[a-zA-Z0-9][a-zA-Z0-9\-]{0,99}$'
+              example: TXpRMU9UQTROMWhZV2xSU1FUazJSMDl
+              description: |
+                Código ou identificador único informado pela instituição detentora da conta para representar
+                a iniciação de pagamento individual. O `paymentId` deve ser diferente do `endToEndId`.
+                Este é o identificador que deverá ser utilizado na consulta ao status da iniciação de pagamento efetuada.
             batchId: 
+              type: "string" #==============================================================================================================================================================================
+              example: "b4d43b34-36c2-49d6-bf98-d9d58454aef9" #=========================================PAREI AQUI==========================================================================================
+              description: Identificador único do lote #====================================================================================================================================================
+            endToEndId: 
               type: "string"
-              example: "914dea35-0ca8-4846-90ba-0a05f94cb261"
+              example: "E9040088820210128000800123873170"
+              description: |
+                Deve ser preenchido no formato padrão ExxxxxxxxyyyyMMddHHmmkkkkkkkkkkk (32 caracteres; “case sensitive”, isso é, diferencia letras maiúsculas e minúsculas), sendo:
+
+                • “E” – fixo (1 caractere);  
+        
+                • xxxxxxxx – identificação do agente que gerou o ´EndToEndId´, podendo ser: o ISPB do participante direto ou o ISPB do participante indireto (8 caracteres numéricos [0-9]);  
+        
+                • yyyyMMddHHmm – data, hora e minuto (12 caracteres), seguindo o horário UTC, da submissão da ordem de pagamento, caso a liquidação seja prioritária, ou prevista para o envio da ordem ao sistema de liquidação, caso seja realizado um agendamento. Para ordens prioritárias e não prioritárias, aceita-se o preenchimento, pelo agente que gerou o ´EndToEndId´, com uma tolerância máxima de 12 horas, para o futuro e para o passado, em relação ao horário efetivo de processamento da ordem pelo SPI;  
+        
+                • kkkkkkkkkkk – sequencial criado pelo agente que gerou o ´EndToEndId´ (11 caracteres alfanuméricos [a-z/A-Z/0-9]). Deve ser único dentro de cada “yyyyMMddHHmm”.  
+        
+                Admite-se que o ´EndToEndId´ seja gerado pelo participante direto, pelo participante indireto ou pelo iniciador de pagamento.
+                  
+                Ele deve ser único, não podendo ser repetido em qualquer outra operação enviada ao SPI.
+        
+                No caso de Pix agendamento, a iniciadora deverá, no que tange a composição do endToEndId, utilizar a data para a qual o Pix está sendo agendado e horário fixo 15:00 UTC, que dará para a detentora a janela de efetivação de 00:00 e 23:59 do horário de Brasília.
+            date: 
+              format: date
+              type: "string"
+              example: "2023-10-10"
+              description: Data prevista para liquidação do pagamento
+            creationDateTime: 
+              format: date-time
+              type: "string"
+              example: "2020-07-21T08:30:00Z"
+              description: Data e hora da criação do pagamento
+            statusUpdateDateTime: 
+              type: "string"
+              example: "2020-07-21T08:30:00Z"
+              format: date-time
+              description: Data e hora em que ouve a última atualização de estado do pagamento.
             status: 
               type: "string"
-              example: "EXECUTING"
+              example: "PDNG"
+              description: Estado atual do pagamento
+            rejectionReason: 
+              description: | 
+                Motivos de rejeição do pagamento  
+                [Restrição] Obrigatório se campo o status do pagamento for igual a RJCT
+              required: 
+                - "code"
+                - "detail"
+              properties: 
+                code: 
+                  type: "string"
+                  example: "SALDO_INSUFICIENTE"
+                  description: Código identificador do motivo de rejeição do pagamento
+                detail: 
+                  type: "string"
+                  example: "string"
+                  description: Detalhes sobre o motivo de rejeição do pagamento
+              type: "object"
+            payment: 
+              required: 
+                - "amount"
+                - "currency"
+              properties: 
+                amount: 
+                  type: "string"
+                  example: "100000.12"
+                  description: Valor total do pagamento com duas casas decimais
+                currency: 
+                  type: "string"
+                  example: "BRL"
+                  description: Código da moeda nacional segundo modelo ISO-4217, ou seja, 'BRL'. Todos os valores monetários informados estão representados com a moeda vigente do Brasil.
+              type: "object"
+            remittanceInformation: 
+              type: "string"
+              example: "Pagamento da nota RSTO035-002."
+            creditorAccount: 
+              required: 
+                - "ispb"
+                - "number"
+                - "accountType"
+              properties: 
+                ispb: 
+                  type: "string"
+                  example: "12345678"
+                  minLength: 8
+                  maxLength: 8
+                  pattern: ^[0-9]{8}$
+                  description: Deve ser preenchido com o ISPB (Identificador do Sistema de Pagamentos Brasileiros) do participante do SPI (Sistema de pagamentos instantâneos) somente com números.
+                issuer: 
+                  description: |
+                    Código da Agência emissora da conta sem dígito. (Agência é a dependência destinada ao atendimento aos clientes, ao público em geral e aos associados de cooperativas de crédito, no exercício de atividades da instituição, não podendo ser móvel ou transitória). 
+                    [Restrição] Preenchimento obrigatório para os seguintes tipos de conta: CACC (CONTA_DEPOSITO_A_VISTA) e SVGS (CONTA_POUPANCA).
+                  type: "string"
+                  example: "0001"
+                  minLength: 1
+                  maxLength: 4
+                  pattern: ^[0-9]{1,4}$
+                number: 
+                  type: "string"
+                  example: "12345456"
+                  minLength: 1
+                  maxLength: 20
+                  pattern: ^[0-9]{1,20}$
+                  description: Deve ser preenchido com o número da conta do usuário recebedor, com dígito verificador (se este existir), se houver valor alfanumérico, este deve ser convertido para 0.
+                accountType: 
+                  description: |
+                    Tipos de contas usadas para pagamento. Modalidades tradicionais previstas pela Resolução 4.753, não contemplando contas vinculadas, conta de domiciliados no exterior, contas em moedas estrangeiras e conta correspondente moeda eletrônica. Segue descrição de cada valor do ENUM.
+
+                    * CACC - Current - Conta Corrente.
+                    * SVGS - Savings - Conta de Poupança.
+                    * TRAN - TransactingAccount - Conta de Pagamento pré-paga.
+                  type: "string"
+                  example: "CACC"
+                  enum:
+                    - CACC
+                    - SVGS
+                    - TRAN
+              type: "object"
+            debtorAccount: 
+              required: 
+                - "ispb"
+                - "number"
+                - "accountType"
+              properties: 
+                ispb: 
+                  type: "string"
+                  example: "12345678"
+                  minLength: 8
+                  maxLength: 8
+                  pattern: ^[0-9]{8}$
+                  description: Deve ser preenchido com o ISPB (Identificador do Sistema de Pagamentos Brasileiros) do participante do SPI (Sistema de pagamentos instantâneos) somente com números.
+                issuer: 
+                  description: |
+                    Código da Agência emissora da conta sem dígito. (Agência é a dependência destinada ao atendimento aos clientes, ao público em geral e aos associados de cooperativas de crédito, no exercício de atividades da instituição, não podendo ser móvel ou transitória). 
+                    [Restrição] Preenchimento obrigatório para os seguintes tipos de conta: CACC (CONTA_DEPOSITO_A_VISTA) e SVGS (CONTA_POUPANCA).
+                  type: "string"
+                  example: "0001"
+                  minLength: 1
+                  maxLength: 4
+                  pattern: ^[0-9]{1,4}$
+                number: 
+                  type: "string"
+                  example: "12345456"
+                  minLength: 1
+                  maxLength: 20
+                  pattern: ^[0-9]{1,20}$
+                  description: Deve ser preenchido com o número da conta do usuário recebedor, com dígito verificador (se este existir), se houver valor alfanumérico, este deve ser convertido para 0.
+                accountType: 
+                  description: |
+                    Tipos de contas usadas para pagamento. Modalidades tradicionais previstas pela Resolução 4.753, não contemplando contas vinculadas, conta de domiciliados no exterior, contas em moedas estrangeiras e conta correspondente moeda eletrônica. Segue descrição de cada valor do ENUM.
+
+                    * CACC - Current - Conta Corrente.
+                    * SVGS - Savings - Conta de Poupança.
+                    * TRAN - TransactingAccount - Conta de Pagamento pré-paga.
+                  type: "string"
+                  example: "CACC"
+                  enum:
+                    - CACC
+                    - SVGS
+                    - TRAN
+              type: "object"
+            cancellation: 
+              required: 
+                - "reason"
+                - "cancelledFrom"
+                - "cancelledAt"
+                - "cancelledBy"
+              properties: 
+                reason: 
+                  type: "string"
+                  example: "CANCELADO_PENDENCIA"
+                cancelledFrom: 
+                  type: "string"
+                  example: "INICIADORA"
+                cancelledAt: 
+                  type: "string"
+                  example: "2021-05-21T08:30:00Z"
+                cancelledBy: 
+                  required: 
+                    - "document"
+                  properties: 
+                    document: 
+                      required: 
+                        - "identification"
+                        - "rel"
+                      properties: 
+                        identification: 
+                          type: "string"
+                          example: "11111111111"
+                        rel: 
+                          type: "string"
+                          example: "CPF"
+                      type: "object"
+                  type: "object"
+              type: "object"
+            authorisationFlow: 
+              type: "string"
+              example: "HYBRID_FLOW"
+            localInstrument: 
+              type: "string"
+              example: "DICT"
+            proxy: 
+              type: "string"
+              example: "11221131242"
+            transactionIdentification: 
+              type: "string"
+              example: "E00038166201907261559y6j6"
           type: "object"
         links: 
           required: 
@@ -1101,7 +1407,7 @@ components:
           properties: 
             self: 
               type: "string"
-              example: "https://api.banco.com.br/open-banking/batch-payments/v1/payments/{payment}"
+              example: "https://api.banco.com.br/openbanking/payments/v1/batch/{batchId}/payments/{paymentId}"
           type: "object"
         meta: 
           required: 
@@ -1111,31 +1417,13 @@ components:
               type: "string"
               example: "2021-05-21T08:30:00Z"
           type: "object"
+
     XFapiInteractionId:
       type: string
       pattern: '^[a-zA-Z0-9][a-zA-Z0-9\-]{0,99}$'
       maxLength: 100
       description: 'Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.'
   parameters:
-    consentId:
-      name: consentId
-      in: query
-      description: |
-        O `consentId` é o identificador único do consentimento e deverá ser um URN - Uniform Resource Name.  
-        Um URN, conforme definido na [RFC8141](https://tools.ietf.org/html/rfc8141) é um Uniform Resource 
-        Identifier - URI - que é atribuído sob o URI scheme "urn" e um namespace URN específico, com a intenção de que o URN 
-        seja um identificador de recurso persistente e independe da localização.  
-        Considerando a string urn:bancoex:C1DD33123 como exemplo para `consentId` temos:
-        - o namespace(urn)
-        - o identificador associado ao namespace da instituição detentora (bancoex).
-        - o identificador específico dentro do namespace (C1DD33123).  
-        Informações mais detalhadas sobre a construção de namespaces devem ser consultadas na [RFC8141](https://tools.ietf.org/html/rfc8141).
-      required: true
-      schema:
-        type: string
-        pattern: '^urn:[a-zA-Z0-9][a-zA-Z0-9\-]{0,31}:[a-zA-Z0-9()+,\-.:=@;$_!*''%\/?#]+$'
-        minLength: 1
-        maxLength: 256
     pathConsentId:
       name: consentId
       in: path
@@ -1159,15 +1447,8 @@ components:
       name: batchId
       in: path
       description: |
-        O `consentId` é o identificador único do consentimento e deverá ser um URN - Uniform Resource Name.  
-        Um URN, conforme definido na [RFC8141](https://tools.ietf.org/html/rfc8141) é um Uniform Resource 
-        Identifier - URI - que é atribuído sob o URI scheme "urn" e um namespace URN específico, com a intenção de que o URN 
-        seja um identificador de recurso persistente e independe da localização.  
-        Considerando a string urn:bancoex:C1DD33123 como exemplo para `consentId` temos:
-        - o namespace(urn)
-        - o identificador associado ao namespace da instituição detentora (bancoex).
-        - o identificador específico dentro do namespace (C1DD33123).  
-        Informações mais detalhadas sobre a construção de namespaces devem ser consultadas na [RFC8141](https://tools.ietf.org/html/rfc8141).
+        O `batchId` é o identificador único do lote e deverá ser um uuid conforme RFC-4122.  
+        Informações mais detalhadas sobre a construção de namespaces devem ser consultadas na RFC-4122
       required: true
       schema:
         type: string
@@ -1176,8 +1457,8 @@ components:
         minLength: 1
         maxLength: 256
     pathBatchPaymentId:
-      name: batchPaymentId
-      in: query
+      name: paymentId
+      in: path
       description: Identificador da operação de pagamento.
       required: true
       schema:
@@ -1500,10 +1781,20 @@ components:
                 properties: 
                   consentId: 
                     type: "string"
-                    example: "08e57d3b-5cb5-478d-b150-b9e2dc63adec"
+                    example: "urn:bancoex:C1DD33123"
+                    description: |
+                      Identificador único do consentimento criado para a iniciação de pagamento solicitada. Deverá ser um URN - Uniform Resource Name. Um URN, conforme definido na RFC8141 é um Uniform Resource Identifier - URI - que é atribuído sob o URI scheme "urn" e um namespace URN específico, com a intenção de que o URN seja um identificador de recurso persistente e independente da localização. Considerando a string urn:bancoex:C1DD33123 como exemplo para consentId temos:
+
+                      * o namespace(urn)
+                      * o identificador associado ao namespace da instituição transnmissora (bancoex)
+                      * o identificador específico dentro do namespace (C1DD33123). Informações mais detalhadas sobre a construção de namespaces devem ser consultadas na RFC8141.
+                    maxLength: 256
+                    pattern: ^urn:[a-zA-Z0-9][a-zA-Z0-9\-]{0,31}:[a-zA-Z0-9()+,\-.:=@;$_!*'%\/?#]+$
                   loggedUser: 
                     required: 
                       - "document"
+                    description: |
+                      Usuário (pessoa natural) que encontra-se logado na instituição Iniciadora de Pagamento.
                     properties: 
                       document: 
                         required: 
@@ -1513,40 +1804,67 @@ components:
                           identification: 
                             type: "string"
                             example: "11111111111"
+                            description: Número do documento de identificação oficial do usuário.
                           rel: 
                             type: "string"
+                            maxLength: 3
+                            pattern: ^[A-Z]{3}$
                             example: "CPF"
+                            description: Tipo do documento de identificação oficial do usuário.
                         type: "object"
                     type: "object"
-                  businessEntity: 
+                  businessEntity:
+                    description: |	
+                      Usuário (pessoa jurídica) que encontra-se logado na instituição Iniciadora de Pagamento. [Restrição] Preenchimento obrigatório se usuário logado na instituição Iniciadora de Pagamento for um CNPJ (pessoa jurídica). 
                     required: 
                       - "document"
                     properties: 
-                      document: 
+                      document:
+                        description: |
+                          Usuário (pessoa jurídica) que encontra-se logado na instituição Iniciadora de Pagamento. [Restrição] Preenchimento obrigatório se usuário logado na instituição Iniciadora de Pagamento for um CNPJ (pessoa jurídica). 
                         required: 
                           - "identification"
                           - "rel"
                         properties: 
-                          identification: 
+                          identification:
+                            description: Número do documento de identificação oficial do titular pessoa jurídica. 
                             type: "string"
                             example: "11111111111111"
+                            pattern: ^\d{14}$
+                            maxLength: 14
                           rel: 
                             type: "string"
                             example: "CNPJ"
+                            maxLength: 4
+                            pattern: ^[A-Z]{4}$
+                            description: Tipo do documento de identificação oficial do titular pessoa jurídica.
                         type: "object"
                     type: "object"
                   creationDateTime: 
+                    format: date-time
                     type: "string"
                     example: "2024-03-13T12:00:00Z"
+                    pattern: ^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])T(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)Z$
+                    maxLength: 20
+                    description: Data e hora em que o consentimento foi criado. Uma string com data e hora conforme especificação RFC-3339, sempre com a utilização de timezone UTC(UTC time format).
                   statusUpdateDateTime: 
+                    format: date-time
                     type: "string"
                     example: "2024-03-13T12:00:00Z"
+                    pattern: ^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])T(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)Z$
+                    maxLength: 20
                   description: 
                     type: "string"
-                    example: ""
+                    example: "Descrição do lote"
                   status: 
                     type: "string"
                     example: "AWAITING_AUTHORISATION"
+                    enum:
+                      - AWAITING_AUTHORISATION
+                      - AUTHORISED
+                      - REJECTED
+                      - PARTIALLY_ACCEPTED
+                      - CONSUMED
                   reason: 
                     required: 
                       - "code"
@@ -1559,51 +1877,97 @@ components:
                         type: "string"
                         example: "revogado no ambiente da iniciadora"
                     type: "object"
-                  batchConfiguration: 
+                  batchConfiguration:
+                    description: Contém as informações básicas sobre o lote que será enviado posteriormente
                     type: "array"
                     items: 
                       type: "object"
                       properties: 
                         batchId: 
+                          format: uuid
                           type: "string"
                           example: "914dea35-0ca8-4846-90ba-0a05f94cb261"
+                          description: Código identificador do lote, deve ser informado pelo iniciador e ser um UUID válido com base na RFC-4122 
                         status: 
+                          description: Indica o estado atual do lote 
                           type: "string"
                           example: "AWAITING_CONFIGURATION"
+                          enum: 
+                            - AWAITING_CONFIGURATION
+                            - AWAITING_AUTHORISATION
+                            - READY
+                            - REVOKED
+                            - REJECTED
+                            - EXECUTING
+                            - EXECUTED
+                            - FAILED
                         type: 
                           type: "string"
-                          example: "CONSOLIDATED | INDIVIDUAL"
+                          example: "CONSOLIDATED"
+                          enum: 
+                            - CONSOLIDATED
+                            - INDIVIDUAL
+                          description: Determina a maneira de descriminação dos valores no extrato do pagador
                         description: 
+                          description: Descrição curta sobre a finalidade do lote. Caso informado pelo pagador ao iniciador, deve ser repassado para o detentor através deste campo.
                           type: "string"
                           example: "batch imediato"
+                          pattern: '[\w\W\s]*'
+                          maxLength: 256
                         total: 
                           type: "number"
                           example: 200
+                          description: Quantidade de recebedores que estarão presentes no lote
                         batchValue: 
                           type: "string"
                           example: "39000.00"
+                          description: Somatorio dos valores a serem pagos para todos os recebedores
                         batchType: 
                           type: "string"
-                          example: "IMEDIATE | SCHEDULE"
+                          example: "IMEDIATE"
+                          description: Determina se o pagamento é imediato ou agendado.
                   debtorAccount: 
                     required: 
                       - "ispb"
-                      - "issuer"
                       - "number"
                       - "accountType"
                     properties: 
                       ispb: 
                         type: "string"
                         example: "12345678"
+                        minLength: 8
+                        maxLength: 8
+                        pattern: ^[0-9]{8}$
+                        description: Deve ser preenchido com o ISPB (Identificador do Sistema de Pagamentos Brasileiros) do participante do SPI (Sistema de pagamentos instantâneos) somente com números.
                       issuer: 
+                        description: |
+                          Código da Agência emissora da conta sem dígito. (Agência é a dependência destinada ao atendimento aos clientes, ao público em geral e aos associados de cooperativas de crédito, no exercício de atividades da instituição, não podendo ser móvel ou transitória). 
+                          [Restrição] Preenchimento obrigatório para os seguintes tipos de conta: CACC (CONTA_DEPOSITO_A_VISTA) e SVGS (CONTA_POUPANCA).
                         type: "string"
                         example: "0001"
+                        minLength: 1
+                        maxLength: 4
+                        pattern: ^[0-9]{1,4}$
                       number: 
                         type: "string"
                         example: "12345456"
+                        minLength: 1
+                        maxLength: 20
+                        pattern: ^[0-9]{1,20}$
+                        description: Deve ser preenchido com o número da conta do usuário recebedor, com dígito verificador (se este existir), se houver valor alfanumérico, este deve ser convertido para 0.
                       accountType: 
+                        description: |
+                          Tipos de contas usadas para pagamento. Modalidades tradicionais previstas pela Resolução 4.753, não contemplando contas vinculadas, conta de domiciliados no exterior, contas em moedas estrangeiras e conta correspondente moeda eletrônica. Segue descrição de cada valor do ENUM.
+      
+                          * CACC - Current - Conta Corrente.
+                          * SVGS - Savings - Conta de Poupança.
+                          * TRAN - TransactingAccount - Conta de Pagamento pré-paga.
                         type: "string"
                         example: "CACC"
+                        enum:
+                          - CACC
+                          - SVGS
+                          - TRAN
                     type: "object"
                 type: "object"
               links: 
