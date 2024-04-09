@@ -10,7 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+            sparse-checkout: |
+             ./swagger-apis/payments/
  
       - name: Install Optic
         run: npm install --location global @useoptic/optic
@@ -19,4 +22,4 @@ jobs:
         env:
           OPTIC_TOKEN: ${{ secrets.OPTIC_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: optic run
+        run: optic diff 4.0.0.yml 4.1.0.yml --check
