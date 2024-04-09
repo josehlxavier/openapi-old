@@ -236,6 +236,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '405':
           $ref: '#/components/responses/MethodNotAllowed'
         '406':
@@ -244,6 +246,8 @@ paths:
           $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/UnprocessableEntityConsents'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
         '529':
           $ref: '#/components/responses/SiteIsOverloaded'
         default:
@@ -2480,6 +2484,11 @@ components:
         - consentId
         - creationDateTime
         - statusUpdateDateTime
+        - status
+        - localInstrument
+        - payment
+        - creditorAccount
+        - cnpjInitiator
         - debtorAccount
       properties:
         paymentId:
@@ -2614,6 +2623,7 @@ components:
               type: string
               format: date
               maxLength: 10
+              pattern: '^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])$'
               example: '2023-08-23'
               description: |
                 Define a data alvo da liquidação do pagamento.
@@ -2630,6 +2640,7 @@ components:
         daily:
           type: object
           required:
+            - startDate
             - quantity
           properties:
             startDate:
@@ -2658,6 +2669,18 @@ components:
             - startDate
             - quantity
           properties:
+            dayOfWeek:
+              description: Define o dia da semana planejado para a ocorrência das liquidações.
+              type: string
+              enum:
+                - SEGUNDA_FEIRA
+                - TERCA_FEIRA
+                - QUARTA_FEIRA
+                - QUINTA_FEIRA
+                - SEXTA_FEIRA
+                - SABADO
+                - DOMINGO
+              example: QUINTA_FEIRA
             startDate:
               description: Define o início da vigência da recorrência.
               type: string
