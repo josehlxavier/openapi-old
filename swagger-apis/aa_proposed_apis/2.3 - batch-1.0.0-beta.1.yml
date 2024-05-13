@@ -475,7 +475,7 @@ paths:
     delete:
       tags:
         - Batches
-      summary: Deleta um lote do consentimento ainda não autorizado
+      summary: Remove um lote de um consentimento ainda não autorizado
       operationId: batchPaymentsDeleteBatch
       description: Método para remover um lote de um consentimento que ainda não foi autorizado. O status do consentimento está em `AWAITING_CREDITORS` e o status do lote está em `AWAITING_CREDITORS_CONFIGURATION`
       parameters:
@@ -1108,8 +1108,14 @@ components:
         data:
           required:
             - "loggedUser"
-            - "additionalInformation"
+            - "paymentDate"
           properties:
+            paymentDate:
+              type: "string"
+              description: Data e hora prevista para liquidação do lote de pagamentos associados ao consentimento
+              example: "2021-05-21T08:30:00Z"
+              pattern: ^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])T(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)Z$
+              maxLength: 20
             loggedUser:
               type: object
               description: Usuário (pessoa natural) que encontra-se logado na instituição Iniciadora de Pagamento.
@@ -1240,21 +1246,26 @@ components:
               - totalCreditors
               - totalAmount
             properties:
-              type:
+              visualizationType:
                 type: "string"
                 example: "CONSOLIDATED"
-                description: "Indica se as transações de pagamento deverão ser exibidas no extrato em forma consolidada ou individual"
+                description: >-
+                  "Indica se as transações de pagamento deverão ser exibidas no extrato em forma consolidada ou individual"
                 enum:
                   - CONSOLIDATED
                   - INDIVIDUAL
               date:
-                type: "string"
-                format: "date-time"
-                example: "2021-05-21T08:30:00Z"
+                type: string
+                format: date-time
+                maxLength: 20
+                minLength: 20
+                example: '2021-05-21T08:30:00Z'
+                pattern: ^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:(?:[0-5][0-9]|60)(?:\.[0-9]{1,15})?(?:Z|[+\-](?:[01][0-9]|2[0-3]):[0-5][0-9])$
                 description: |
-                  "Data e hora (em formato UTC) para realização da liquidação. 
-                  [Restrição] Caso valor do campo '/data/paymentConfiguration/type' diferente de "IMMEDIATED", 
-                  a data deve sempre ser D+1, onde D é o dia atual da requisição."
+                    "Data e hora (em formato UTC) para realização da liquidação. 
+                        [Restrição] Caso valor do campo '/data/paymentConfiguration/type' diferente de
+                    "IMMEDIATED", 
+                        a data deve sempre ser D+1, onde D é o dia atual da requisição."
               totalCreditors:
                 type: integer
                 example: 200
@@ -2152,7 +2163,7 @@ components:
       name: batchId
       in: path
       description: |
-        O `batchId` é o identificador único do consentimento e deverá ser um uuid.
+        O `batchId` é o identificador único do lote e deverá ser um uuid.
       required: true
       schema:
         type: string
@@ -2469,11 +2480,9 @@ components:
             properties:
               data:
                 required:
-                  - "consentId"
                   - "statusUpdateDateTime"
                   - "status"
                   - "loggedUser"
-                  - "businessEntity"
                   - "paymentDate"
                   - "additionalInformation"
                   - "debtorAccount"
@@ -2667,7 +2676,6 @@ components:
                 type: "object"
               meta:
                 $ref: "#/components/schemas/Meta"
-
     ResponseBatch:
       description: Objeto contendo as informações de consentimento para a iniciação de pagamento individual.
       headers:
