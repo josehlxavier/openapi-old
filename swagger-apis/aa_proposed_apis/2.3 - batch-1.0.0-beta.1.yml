@@ -388,7 +388,7 @@ paths:
     get:
       tags:
         - Draft Payments
-      summary: Recuperar lista de recebedores de um determinado consentimento
+      summary: Recuperar lista de rascunhos de pagamentos.
       operationId: batchPaymentsGetConsentCreditors
       description: Método consultar intenções de pagamento para um determinado consentimento
       parameters:
@@ -459,12 +459,12 @@ paths:
         - OAuth2ClientCredentials:
             - payments
   '/consents/{consentId}/draft-payments/{draftPaymentId}':
-    delete:
+    patch:
       tags:
         - Draft Payments
-      summary: Remove um recebedor de um consentimento ainda não autorizado
+      summary: Atualizar um rascunho de pagamento de um consentimento ainda não autorizado
       operationId: batchPaymentsDeleteBatch
-      description: Método para remover um recebedor de um consentimento que ainda não foi autorizado. Esse endpoint só poderá ser utilizado quando o status do consentimento estiver em `AWAITING_CONFIGURATION`
+      description: Método para alterar um rascunho de pagamento associado a um consentimento que ainda não foi autorizado. Esse endpoint só poderá ser utilizado enquanto o status do consentimento estiver em `AWAITING_CONFIGURATION`
       parameters:
         - $ref: '#/components/parameters/Authorization'
         - $ref: '#/components/parameters/xCustomerUserAgent'
@@ -473,9 +473,14 @@ paths:
         - $ref: '#/components/parameters/xFapiInteractionIdUUID'
         - $ref: '#/components/parameters/pathConsentId'
         - $ref: '#/components/parameters/draftPaymentId'
+      requestBody:
+        content:
+          application/jwt:
+            schema:
+              $ref: '#/components/schemas/DraftPaymentRequest'
       responses:
-        '204':
-          description: O recebedor foi removido do consentimento com sucesso
+        '200':
+          $ref: '#/components/responses/BatchCreditorResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -522,7 +527,7 @@ paths:
         content:
           application/jwt:
             schema:
-              $ref: '#/components/schemas/CreatePixBatchPayment'
+              $ref: '#/components/schemas/CreatePixPayment'
         description: Payload para criação da iniciação do pagamento Pix.
         required: true
       responses:
@@ -579,6 +584,13 @@ paths:
         - $ref: '#/components/parameters/xFapiCustomerIpAddress'
         - $ref: '#/components/parameters/xFapiInteractionId'
         - $ref: '#/components/parameters/pathConsentId'
+        - name: draftPaymentId
+          in: query
+          description: Identificador único da intenção de pagamento. Filtra os pagamentos associados ao rascunho de pagamento identificado.
+          schema: 
+            type: string
+            format: uuid
+            maxLength: 100
       responses:
         '200':
           $ref: '#/components/responses/BatchPixPaymentResponse'
@@ -707,6 +719,85 @@ paths:
             - payments
 components:
   schemas:
+    EnumPaymentCancellationReasonType:
+      type: string
+      enum:
+        - CANCELADO_PENDENCIA
+        - CANCELADO_AGENDAMENTO
+        - CANCELADO_MULTIPLAS_ALCADAS
+      example: CANCELADO_PENDENCIA
+      description: |
+        O preenchimento desse campo para retorno, deve ocorrer pela detentora de contas a partir do status em que o pagamento estiver no momento da solicitação do cancelamento (ex. Status de pagamento = PDNG, campo deve ser preenchido com enum CANCELADO_PENDENCIA)
+
+        Valores possíveis:
+
+        CANCELADO_PENDENCIA - Pagamento cancelado enquanto estava na situação PDNG
+
+        CANCELADO_AGENDAMENTO - Pagamento cancelado enquanto estava na situação SCHD
+
+        CANCELADO_MULTIPLAS_ALCADAS - Pagamento cancelado enquanto estava na situação PATC
+    EnumPaymentCancellationFromType:
+      type: string
+      enum:
+        - INICIADORA
+        - DETENTORA
+      example: INICIADORA
+      description: |
+        Campo utilizado para informar o meio pelo qual foi realizado o cancelamento.
+
+        Valores possíveis:
+
+        INICIADORA - Pagamento cancelado pelo usuário pagador nos canais da iniciadora
+
+        DETENTORA - Pagamento cancelado pelo usuário pagador nos canais da detentora
+    PixPaymentCancellation:
+      type: object
+      description: |
+        Objeto que contém os dados referentes ao usuário pagador que solicitou o cancelamento, o canal utilizado por ele e o motivo.  
+
+        [Restrição] O objeto cancellation será obrigatório apenas quando o valor do campo status for igual a CANC. 
+      required:
+        - cancelledAt
+        - cancelledBy
+        - reason
+        - cancelledFrom
+      properties:
+        reason:
+          $ref: '#/components/schemas/EnumPaymentCancellationReasonType'
+        cancelledFrom:
+          $ref: '#/components/schemas/EnumPaymentCancellationFromType'
+        cancelledAt:
+          type: string
+          description: 'Data e hora que foi realizado o cancelamento, conforme especificação [RFC-3339](https://datatracker.ietf.org/doc/html/rfc3339), formato UTC.'
+          format: date-time
+          maxLength: 20
+          pattern: '^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])T(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)Z$'
+          example: '2021-05-21T08:30:00Z'
+        cancelledBy:
+          type: object
+          description: Informação relacionada ao usuário pagador que solicitou o cancelamento do pagamento.
+          required:
+            - document
+          properties:
+            document:
+              type: object
+              description: Objeto que consolida os dados do documento do usuário que solicitou o cancelamento.
+              required:
+                - identification
+                - rel
+              properties:
+                identification:
+                  type: string
+                  maxLength: 11
+                  description: Número do documento do usuário pagador responsável pelo cancelamento do pagamento.
+                  example: '11111111111'
+                  pattern: '^\d{11}$'
+                rel:
+                  type: string
+                  maxLength: 3
+                  description: Tipo do documento do usuário pagador responsável pelo cancelamento do pagamento.
+                  example: CPF
+                  pattern: '^[A-Z]{3}$'
     ResponseErrorCreateConsent:
       type: object
       required:
@@ -1123,57 +1214,9 @@ components:
               type: 'string'
               example: 'CANC'
             cancellation:
-              required:
-                - 'canceledBy'
-                - 'cpfCnpj'
-                - 'reason'
-              properties:
-                canceledBy:
-                  type: 'string'
-                  example: 'USUARIO'
-                  description: |
-                    Informação relacionada ao usuário pagador que solicitou o cancelamento do pagamento
-                  enum:
-                    - USUARIO
-                    - INICIADORA
-                cpfCnpj:
-                  type: 'string'
-                  example: '11111111111'
-                  pattern: ^\d{11}$|^\d{14}$
-                  minLength: 11
-                  maxLength: 14
-                  description: |
-                    Identificação da pessoa envolvida na transação.
-                    Preencher com o CPF ou CNPJ, de acordo com o valor escolhido no campo type.
-                    O CPF será utilizado com 11 números e deverá ser informado sem pontos ou traços.
-                    O CNPJ será utilizado com 14 números e deverá ser informado sem pontos ou traços.
-                name:
-                  type: 'string'
-                  pattern: ^([A-Za-zÀ-ÖØ-öø-ÿ,.@:&*+_<>()!?/\\$%\d' -]+)$
-                  maxLength: 120
-                  example: Marco Antonio de Brito
-                  description: |
-                    Em caso de pessoa natural deve ser informado o nome completo do titular da conta.
-                    Em caso de pessoa jurídica deve ser informada a razão social ou o nome fantasia.
-                reason:
-                  description: |
-                    Motivo do cancelamento
-                  required:
-                    - 'code'
-                    - 'detail'
-                  properties:
-                    code:
-                      type: 'string'
-                      example: 'SALDO_INSUFICIENTE'
-                      description: 'Código representativo do motivo de cancelamento do pagamento'
-                    detail:
-                      type: 'string'
-                      example: 'string'
-                      description: 'Detalhes sobre o motivo do cancelamento do pagamento'
-                  type: 'object'
-              type: 'object'
+              $ref: '#/components/schemas/PixPaymentCancellation'
           type: 'object'
-    CreatePixBatchPayment:
+    CreatePixPayment:
       type: object
       required:
         - data
@@ -1182,7 +1225,7 @@ components:
           $ref: '#/components/schemas/CreatePixBatchPaymentData'
     CreatePixBatchPaymentData:
       type: 'array'
-      maxItems: 500
+      maxItems: 50
       items:
         type: 'object'
         additionalProperties: false
@@ -1191,7 +1234,7 @@ components:
             type: 'string'
             format: uuid
             example: '61709a24-be94-4401-88cb-e457cbe13808'
-            description: Identificador único do usuário recebedor. Será utilizado no pagamento para informar quais os parâmetros de pagamento relacionados a cada ordem de um lote
+            description: Identificador único do rascunho de pagamento. Será utilizado no pagamento para checar quais os parâmetros de pagamento e do consentimento.
           endToEndId:
             type: 'string'
             example: 'E9040088820210128000800123873170'
@@ -1204,6 +1247,12 @@ components:
               Admite-se que o 'EndToEndId' seja gerado pelo participante direto, pelo participante indireto ou pelo iniciador de pagamento.
               Ele deve ser único, não podendo ser repetido em qualquer outra operação enviada ao SPI.
               No caso de Pix agendamento, a iniciadora deverá, no que tange a composição do endToEndId, utilizar a data para a qual o Pix está sendo agendado e horário fixo 15:00 UTC, que dará para a detentora a janela de efetivação de 00:00 e 23:59 do horário de Brasília.
+          cnpjInitiator:
+            type: string
+            pattern: '^\d{14}$'
+            maxLength: 14
+            example: '50685362000135'
+            description: CNPJ do Iniciado
           remittanceInformation:
             type: 'string'
             maxLength: 140
@@ -1355,6 +1404,17 @@ components:
                   No arranjo do Pix esta é a mesma sequência gerada e/ou lida pela 
                   funcionalidade Pix Copia e Cola. Este campo deverá ser no formato UTF-8. 
                   [Restrição] Preenchimento obrigatório para pagamentos por QR Code, observado o tamanho máximo de 512 bytes.
+              authorisationFlow:
+                type: string
+                enum:
+                  - HYBRID_FLOW
+                  - CIBA_FLOW
+                  - FIDO_FLOW
+                example: HYBRID_FLOW
+                description: |
+                  Campo condicional utilizado para identificar o fluxo de autorização em que o pagamento foi solicitado.
+                  
+                  [Restrição] Se CIBA ou FIDO, preenchimento obrigatório. Caso o campo não esteja presente no payload, subentende-se que o fluxo de autorização utilizado é o HYBRID_FLOW.
             type: 'object'
     Meta:
       type: object
@@ -1450,8 +1510,7 @@ components:
                 format: 'uuid'
                 example: '61709a24-be94-4401-88cb-e457cbe13808'
                 description: |
-                  Identificador único do usuário recebedor. Será utilizado no pagamento para
-                  informar quais os parâmetros de pagamento relacionados a cada ordem de um lote"
+                  Identificador único do rascunho de pagamento.
               personType:
                 type: 'string'
                 example: 'PESSOA_JURIDICA'
@@ -1556,8 +1615,7 @@ components:
                 format: 'uuid'
                 example: '61709a24-be94-4401-88cb-e457cbe13808'
                 description: |
-                  Identificador único do usuário recebedor. Será utilizado no pagamento para
-                  informar quais os parâmetros de pagamento relacionados a cada ordem de um lote"
+                  Identificador único do rascunho de pagamento.
               personType:
                 type: 'string'
                 example: 'PESSOA_JURIDICA'
@@ -1633,7 +1691,7 @@ components:
                 type: 'string'
                 example: '61709a24-be94-4401-88cb-e457cbe13808'
                 format: uuid
-                description: Identificador único do usuário recebedor. Será utilizado no pagamento para informar quais os parâmetros de pagamento relacionados a cada ordem de um lote"
+                description: Identificador único do rascunho de pagamento.
               endToEndId:
                 type: 'string'
                 example: 'E9040088820210128000800123873170'
@@ -1685,6 +1743,8 @@ components:
                     description: Contém informações adicionais ao pagamento rejeitado
                     example: 'string'
                 type: 'object'
+              cancellation:
+                $ref: '#/components/schemas/PixPaymentCancellation'
               payment:
                 required:
                   - 'type'
@@ -1830,56 +1890,6 @@ components:
                       No arranjo do Pix esta é a mesma sequência gerada e/ou lida pela 
                       funcionalidade Pix Copia e Cola. Este campo deverá ser no formato UTF-8. 
                       [Restrição] Preenchimento obrigatório para pagamentos por QR Code, observado o tamanho máximo de 512 bytes.
-              cancellation:
-                required:
-                  - 'canceledBy'
-                  - 'cpfCnpj'
-                  - 'reason'
-                properties:
-                  canceledBy:
-                    type: 'string'
-                    example: 'USUARIO'
-                    description: |
-                      Informação relacionada ao usuário pagador que solicitou o cancelamento do pagamento
-                    enum:
-                      - USUARIO
-                      - INICIADORA
-                  cpfCnpj:
-                    type: 'string'
-                    example: '11111111111'
-                    pattern: ^\d{11}$|^\d{14}$
-                    minLength: 11
-                    maxLength: 14
-                    description: |
-                      Identificação da pessoa envolvida na transação.
-                      Preencher com o CPF ou CNPJ, de acordo com o valor escolhido no campo type.
-                      O CPF será utilizado com 11 números e deverá ser informado sem pontos ou traços.
-                      O CNPJ será utilizado com 14 números e deverá ser informado sem pontos ou traços.
-                  name:
-                    type: 'string'
-                    pattern: ^([A-Za-zÀ-ÖØ-öø-ÿ,.@:&*+_<>()!?/\\$%\d' -]+)$
-                    maxLength: 120
-                    example: Marco Antonio de Brito
-                    description: |
-                      Em caso de pessoa natural deve ser informado o nome completo do titular da conta.
-                      Em caso de pessoa jurídica deve ser informada a razão social ou o nome fantasia.
-                  reason:
-                    description: |
-                      Motivo do cancelamento
-                    required:
-                      - 'code'
-                      - 'detail'
-                    properties:
-                      code:
-                        type: 'string'
-                        example: 'SALDO_INSUFICIENTE'
-                        description: 'Código representativo do motivo de cancelamento do pagamento'
-                      detail:
-                        type: 'string'
-                        example: 'string'
-                        description: 'Detalhes sobre o motivo do cancelamento do pagamento'
-                    type: 'object'
-                type: 'object'
         links:
           required:
             - 'self'
@@ -2334,7 +2344,7 @@ components:
                     example: 'AWAITING_CONFIGURATION'
                     description: |
                       Status atual do consentimento de acordo com a máquina de estados
-                      * AWAITING_CONFIGURATION - Aguardando configuração de recebedores
+                      * AWAITING_CONFIGURATION - Aguardando configuração de pagamentos
                       * AWAITING_AUTHORISATION - Aguardando autorização
                       * PARTIALLY_ACCEPTED - Parcialmente aceito
                       * AUTHORISED - Autorizado
