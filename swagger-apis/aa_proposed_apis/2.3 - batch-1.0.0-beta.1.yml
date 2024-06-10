@@ -154,43 +154,6 @@ info:
         &ensp;5.1.9 - Valor inválido: O valor enviado não é válido para o QR Code informado (VALOR_INVALIDO);  
         &ensp;5.1.10 - Não informado: Demais validações não explicitamente informadas (ex. suspeita de fraude) e consentimentos rejeitados em versões que não existiam o campo rejectionReason na API de Pagamentos (NAO_INFORMADO)  
         &ensp;5.1.11 - Tempo expirado consumo: O usuário não finalizou o fluxo de pagamento e o consentimento expirou (TEMPO_EXPIRADO_CONSUMO).  
-      5.2 **[Momentos obrigatórios de validação dos rejectionReasons de acordo com o funil de consentimentos.](https://openfinancebrasil.atlassian.net/wiki/spaces/OF/pages/150863940) Para casos em que um consentimento for rejeitado por mais de um motivo, seguir a ordem de prioridade da tabela.**
-      
-      ```
-      |----------------------------------|------------------------------|---------------------|
-      | Etapas do funil de consentimento | rejectionReason/code         | Ordem de prioridade |
-      |----------------------------------|------------------------------|---------------------|
-      |                                  | TEMPO_EXPIRADO_AUTORIZACAO   |          1          |
-      | Início da autenticação           | FALHA_INFRAESTRUTURA         |          2          |
-      |                                  | NAO_INFORMADO                |          3          |
-      |----------------------------------|------------------------------|---------------------|
-      |                                  | TEMPO_EXPIRADO_AUTORIZACAO   |          1          |
-      |                                  | REJEITADO_USUARIO            |          2          |
-      | Conclusão da autenticação        | FALHA_INFRAESTRUTURA         |          3          |
-      |                                  | NAO_INFORMADO                |          4          |
-      |----------------------------------|------------------------------|---------------------|
-      |                                  | CONTA_NAO_PERMITE_PAGAMENTO  |          1          |
-      |                                  | CONTAS_ORIGEM_DESTINO_IGUAIS |          2          |
-      |                                  | VALOR_INVALIDO               |          3          |
-      | Autorização do cliente           | QRCODE_INVALIDO              |          4          |
-      |                                  | VALOR_ACIMA_LIMITE           |          5          |
-      |                                  | SALDO_INSUFICIENTE           |          6          |
-      |                                  | FALHA_INFRAESTRUTURA         |          7          |
-      |                                  | NAO_INFORMADO                |          8          |
-      |----------------------------------|------------------------------|---------------------|
-      |                                  | FALHA_INFRAESTRUTURA         |          1          |
-      | Authorisation code emitido       | NAO_INFORMADO                |          2          |
-      |                                  | TEMPO_EXPIRADO_CONSUMO       |          3          |
-      |----------------------------------|------------------------------|---------------------|
-      ```
-      Existem dois `endpoints` para cancelamento de pagamentos, um deles é o _PATCH /pix/payments/{paymentId}_ e o outro é o _PATCH /pix/payments/consents/{consentId}_.
-      - O _PATCH /pix/payments/{paymentId}_ deve ser utilizado para o cancelamento de um pagamento de forma unitária. Não deve ser utilizado para o cancelamento de todos os agendamentos recorrentes associados a um consentimento.
-      - O _PATCH /pix/payments/consents/{consentId}_ deve ser utilizado no cancelamento de todas as ocorrências de pagamentos agendados presentes em uma recorrência de pagamentos. Todos os pagamentos associados ao consentimento informado e passíveis de cancelamento (ainda não liquidados, com os status PDNG e SCHD) deverão ser cancelados.
-      
-      ## Quantidade máxima permitida para agendamentos recorrentes
-      A quantidade máxima de pagamentos que podem transitar do iniciador para o detentor são de 60 pagamentos, independente do modelo de recorrência definido no consentimento, respeitando o prazo máximo de dois anos para agendamentos. 
-      Caso a opção de recorrência enviada pelo iniciador não respeite a regra acima, o detentor deve retornar o erro 422 "PARAMETRO_INVALIDO" com o detalhe "Quantidade permitida de pagamentos excedida".
-
   version: 1.0.0-beta.1
   license:
     name: Apache 2.0
@@ -374,7 +337,7 @@ paths:
         - Draft Payments
       summary: Adiciona pagamentos previstos em um consentimento para os pagamentos em lote.
       operationId: batchPaymentsPostConsentCreditors
-      description: Método adicionar recebedores em um consentimento para os pagamentos em lote.
+      description: Método adicionar intenções de pagamento em um consentimento para os pagamentos em lote.
       parameters:
         - $ref: '#/components/parameters/Authorization'
         - $ref: '#/components/parameters/xCustomerUserAgent'
@@ -427,7 +390,7 @@ paths:
         - Draft Payments
       summary: Recuperar lista de recebedores de um determinado consentimento
       operationId: batchPaymentsGetConsentCreditors
-      description: Método adicionar recebedores para um determinado consentimento
+      description: Método consultar intenções de pagamento para um determinado consentimento
       parameters:
         - $ref: '#/components/parameters/Authorization'
         - $ref: '#/components/parameters/xCustomerUserAgent'
@@ -435,7 +398,15 @@ paths:
         - $ref: '#/components/parameters/xFapiCustomerIpAddress'
         - $ref: '#/components/parameters/xFapiInteractionId'
         - $ref: '#/components/parameters/pathConsentId'
-        - $ref: '#/components/parameters/XIdempotencyKey'
+        - name: draftPaymentId
+          in: query
+          description: Identificador único da intenção de pagamento.
+          schema: 
+            type: string
+            format: uuid
+            maxLength: 100
+        - $ref: "#/components/parameters/startDate"
+        - $ref: "#/components/parameters/endDate"
         - name: page-size
           in: query
           description: Quantidade de items que devem ser retornados em uma página
@@ -487,7 +458,6 @@ paths:
       security:
         - OAuth2ClientCredentials:
             - payments
-
   '/consents/{consentId}/draft-payments/{draftPaymentId}':
     delete:
       tags:
@@ -502,7 +472,7 @@ paths:
         - $ref: '#/components/parameters/xFapiCustomerIpAddress'
         - $ref: '#/components/parameters/xFapiInteractionIdUUID'
         - $ref: '#/components/parameters/pathConsentId'
-        - $ref: '#/components/parameters/pathCreditorId'
+        - $ref: '#/components/parameters/draftPaymentId'
       responses:
         '204':
           description: O recebedor foi removido do consentimento com sucesso
@@ -608,6 +578,7 @@ paths:
         - $ref: '#/components/parameters/xFapiAuthDate'
         - $ref: '#/components/parameters/xFapiCustomerIpAddress'
         - $ref: '#/components/parameters/xFapiInteractionId'
+        - $ref: '#/components/parameters/pathConsentId'
       responses:
         '200':
           $ref: '#/components/responses/BatchPixPaymentResponse'
@@ -643,7 +614,7 @@ paths:
       tags:
         - Payments
       summary: Busca informações de solicitações de transações de pagamento.
-      operationId: automaticPaymentsGetPixbatchPayments
+      operationId: PaymentsGetPixPayments
       description: |
         Método para buscar informações sobre um conjunto de pagamentos associados ao mesmo consentId. 
         Também é possível enviar uma data de início (startDate) e final (endDate), caso a busca seja por transações em uma determinada janela de tempo.
@@ -653,6 +624,8 @@ paths:
         - $ref: '#/components/parameters/xFapiAuthDate'
         - $ref: '#/components/parameters/xFapiCustomerIpAddress'
         - $ref: '#/components/parameters/xFapiInteractionId'
+        - $ref: '#/components/parameters/pathConsentId'
+        - $ref: '#/components/parameters/pathPaymentId'
       responses:
         '200':
           $ref: '#/components/responses/BatchPixPaymentResponse'
@@ -696,7 +669,7 @@ paths:
         - $ref: '#/components/parameters/xFapiCustomerIpAddress'
         - $ref: '#/components/parameters/xFapiInteractionId'
         - $ref: '#/components/parameters/pathConsentId'
-        - $ref: '#/components/parameters/pathBatchPaymentId'
+        - $ref: '#/components/parameters/pathPaymentId'
       requestBody:
         content:
           application/jwt:
@@ -1214,7 +1187,7 @@ components:
         type: 'object'
         additionalProperties: false
         properties:
-          creditorId:
+          draftPaymentId:
             type: 'string'
             format: uuid
             example: '61709a24-be94-4401-88cb-e457cbe13808'
@@ -1451,14 +1424,28 @@ components:
           items:
             type: 'object'
             required:
-              - creditorId
+              - date
+              - draftPaymentId
               - personType
               - cpfCnpj
               - name
               - amount
               - currency
+              - creationDateTime
             properties:
-              creditorId:
+              date:
+                type: string
+                format: date
+                maxLength: 10
+                example: '2021-01-01'
+                description: |
+                  Dia previsto para a realização da tentativa de liquidação.
+              creationDateTime:
+                type: 'string'
+                example: '2020-07-21T08:30:00Z'
+                description: Data e hora em que o recurso foi criado. Uma string com data e hora conforme especificação RFC-3339, sempre com a utilização de timezone UTC(UTC time format).
+                pattern: ^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])T(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)Z$
+              draftPaymentId:
                 type: 'string'
                 format: 'uuid'
                 example: '61709a24-be94-4401-88cb-e457cbe13808'
@@ -1642,7 +1629,7 @@ components:
                 description: Código ou identificador único informado pela instituição detentora da conta para representar a iniciação de pagamento. O paymentId deve ser diferente do endToEndId. Este é o identificador que deverá ser utilizado na consulta ao status e cancelamento da iniciação de pagamento efetuada.
                 maxLength: 100
                 pattern: ^[a-zA-Z0-9][a-zA-Z0-9\-]{0,99}$
-              creditorId:
+              draftPaymentId:
                 type: 'string'
                 example: '61709a24-be94-4401-88cb-e457cbe13808'
                 format: uuid
@@ -1977,11 +1964,11 @@ components:
         pattern: '^urn:[a-zA-Z0-9][a-zA-Z0-9\-]{0,31}:[a-zA-Z0-9()+,\-.:=@;$_!*''%\/?#]+$'
         minLength: 1
         maxLength: 256
-    pathCreditorId:
-      name: creditorId
+    draftPaymentId:
+      name: draftPaymentId
       in: path
       description: |
-        O `creditorId` é o identificador único do recebedor e deverá ser um uuid.
+        O `draftPaymentId` é o identificador único da intenção de pagamento e deverá ser um uuid.
       required: true
       schema:
         type: string
@@ -1998,9 +1985,9 @@ components:
         format: uuid
         minLength: 1
         maxLength: 256
-    pathBatchPaymentId:
-      name: batchPaymentId
-      in: query
+    pathPaymentId:
+      name: paymentId
+      in: path
       description: Identificador da operação de pagamento.
       required: true
       schema:
