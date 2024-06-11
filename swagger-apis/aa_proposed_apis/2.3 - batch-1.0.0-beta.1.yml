@@ -510,7 +510,7 @@ paths:
       tags:
         - Payments
       summary: Envia solicitações de transações de pagamento.
-      operationId: automaticPaymentsPostPixbatchPayments
+      operationId: PaymentsPostPixbatchPayments
       description: Método para criação de uma lista de transações de pagamento.
       parameters:
         - $ref: '#/components/parameters/Authorization'
@@ -570,7 +570,7 @@ paths:
       tags:
         - Payments
       summary: Busca informações de solicitações de transações de pagamento.
-      operationId: automaticPaymentsGetPixbatchPayments
+      operationId: PaymentsGetPixbatchPayments
       description: |
         Método para buscar informações sobre um conjunto de pagamentos associados ao mesmo recurringConsentId. 
         Também é possível enviar uma data de início (startDate) e final (endDate), caso a busca seja por transações em uma determinada janela de tempo.
@@ -685,7 +685,7 @@ paths:
       tags:
         - Payments
       summary: Cancela uma solicitação de transações de pagamento.
-      operationId: automaticPaymentsGetPixbatchPaymentsPaymentId
+      operationId: PaymentsPatchPixBatchPayments
       description: | 
         Esse endpoint deve ser usado para cancelar as transações que estejam retidas para análise (PDNG). Caso a requisição seja bem sucedida, a transação vai para a situação CANC.  
         Caso o status do pagamento seja diferente de PDNG ou alguma outra regra de negócio impeça o cancelamento, a requisição PATCH retorna 
@@ -1490,7 +1490,8 @@ components:
               maxLength: 20
               format: date-time
               example: '2021-05-21T08:30:00Z'
-    ResponseBatchConsentCreditors:
+    ResponseDraftPayment:
+      type: object
       required:
         - 'data'
         - 'links'
@@ -2411,6 +2412,7 @@ components:
       content:
         application/jwt:
           schema:
+            type: object
             required:
               - data
               - meta
@@ -2632,7 +2634,6 @@ components:
                 type: 'object'
               meta:
                 $ref: '#/components/schemas/Meta'
-
     BatchCreditorResponse:
       description: Objeto contendo as informações de recebores para a iniciação de pagamento em lote.
       headers:
@@ -2644,7 +2645,7 @@ components:
       content:
         application/jwt:
           schema:
-            $ref: '#/components/schemas/ResponseBatchConsentCreditors'
+            $ref: '#/components/schemas/ResponseDraftPayment'
     BatchPixPaymentResponse:
       description: Dados de iniciação de pagamento Pix obtidos com sucesso.
       headers:
