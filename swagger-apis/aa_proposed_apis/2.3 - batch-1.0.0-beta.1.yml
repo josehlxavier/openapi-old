@@ -606,7 +606,7 @@ paths:
               - PDNG
       responses:
         '200':
-          $ref: '#/components/responses/BatchPixPaymentResponse'
+          $ref: '#/components/responses/ReducedBatchPixPaymentResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1688,6 +1688,148 @@ components:
                 description: Deve ser preenchido sempre que o usuário pagador inserir alguma informação adicional em um pagamento, a ser enviada ao recebedor.
                 maxLength: 140
                 pattern: '[\w\W\s]*'
+    ReducedResponseBodyBatchPixPayment:
+      required:
+        - 'data'
+        - 'links'
+        - 'meta'
+      properties:
+        data:
+          type: 'array'
+          items:
+            properties: 
+              consentId:
+                pattern: ^urn:[a-zA-Z0-9][a-zA-Z0-9\-]{0,31}:[a-zA-Z0-9()+,\-.:=@;$_!*'%\/?#]+$
+                type: 'string'
+                example: 'urn:bancoex:C1DD33123'
+                maxLength: 256
+                description: |
+                  "Identificador único do consentimento criado para a iniciação de pagamento solicitada.
+                  Deverá ser um URN - Uniform Resource Name. Um URN, conforme definido na RFC8141 é um 
+                  Uniform Resource Identifier - URI - que é atribuído sob o URI scheme "urn" e um namespace 
+                  URN específico, com a intenção de que o URN seja um identificador de recurso persistente e 
+                  independente da localização. Considerando a string urn:bancoex:C1DD33123 como exemplo 
+                  para consentId temos:
+                  * o namespace(urn)
+                  * o identificador associado ao namespace da instituição transmissora (bancoex)
+                  * o identificador específico dentro do namespace (C1DD33123). Informações mais detalhadas sobre a construção de namespaces devem ser consultadas na RFC8141.
+              paymentId: 
+                type: 'string'
+                example: 'TXpRMU9UQTROMWhZV2xSU1FUazJSMDl'
+                description: Código ou identificador único informado pela instituição detentora da conta para representar a iniciação de pagamento. O paymentId deve ser diferente do endToEndId. Este é o identificador que deverá ser utilizado na consulta ao status e cancelamento da iniciação de pagamento efetuada.
+                maxLength: 100
+                pattern: ^[a-zA-Z0-9][a-zA-Z0-9\-]{0,99}$
+              draftPaymentId: 
+                type: 'string'
+                example: '61709a24-be94-4401-88cb-e457cbe13808'
+                format: uuid
+                description: Identificador único do rascunho de pagamento.
+              endToEndId: 
+                type: 'string'
+                example: 'E9040088820210128000800123873170'
+                description: |
+                  Deve ser preenchido no formato padrão ExxxxxxxxyyyyMMddHHmmkkkkkkkkkkk (32 caracteres; “case sensitive”, isso é, diferencia letras maiúsculas e minúsculas), sendo:
+                  * “E” - fixo (1 caractere);
+                  * xxxxxxxx - identificação do agente que gerou o 'EndToEndId', podendo ser: o ISPB do participante direto ou o ISPB do participante indireto (8 caracteres numéricos [0-9]);
+                  * yyyyMMddHHmm - data, hora e minuto (12 caracteres), seguindo o horário UTC, da submissão da ordem de pagamento, caso a liquidação seja prioritária, ou prevista para o envio da ordem ao sistema de liquidação, caso seja realizado um agendamento. Para ordens prioritárias e não prioritárias, aceita-se o preenchimento, pelo agente que gerou o 'EndToEndId', com uma tolerância máxima de 12 horas, para o futuro e para o passado, em relação ao horário efetivo de processamento da ordem pelo SPI;
+                  * kkkkkkkkkkk - sequencial criado pelo agente que gerou o 'EndToEndId' (11 caracteres alfanuméricos [a-z/A-Z/0-9]). Deve ser único dentro de cada “yyyyMMddHHmm”.
+                  Admite-se que o 'EndToEndId' seja gerado pelo participante direto, pelo participante indireto ou pelo iniciador de pagamento.
+                  Ele deve ser único, não podendo ser repetido em qualquer outra operação enviada ao SPI.
+                  No caso de Pix agendamento, a iniciadora deverá, no que tange a composição do endToEndId, utilizar a data para a qual o Pix está sendo agendado e horário fixo 15:00 UTC, que dará para a detentora a janela de efetivação de 00:00 e 23:59 do horário de Brasília.
+              transactionIdentification: 
+                type: 'string'
+                pattern: ^[a-zA-Z0-9]{1,35}$
+                maxLength: 35
+                example: E00038166201907261559y6j6
+                description: |
+                  Trata-se de um identificador de transação que deve ser retransmitido intacto pelo PSP do pagador ao gerar a ordem de pagamento. Essa informação permitirá ao recebedor identificar e correlacionar a transferência, quando recebida, com a apresentação das instruções ao pagador. Os caracteres permitidos no contexto do Pix para o campo txid (EMV 62-05) são:
+
+                  * Letras minúsculas, de 'a' a 'z'
+                  * Letras maiúsculas, de 'A' a 'z'
+                  * Dígitos decimais, de '0' a '9'
+
+                  [Restrição] Preenchimento condicional de acordo com o conteúdo do campo localInstument:
+                  * MANU - O campo transactionIdentification não deve ser preenchido.
+                  * DICT - O campo transactionIdentification não deve ser preenchido.
+                  * INIC - O campo transactionIdentification deve ser preenchido obrigatoriamente e deve conter até 25 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                  * QRES - Caso o QR Code estático possua o dado <TxId> preenchido, o campo transactionIdentification deverá ser preenchido com este valor, caso o QR Code não possua o <TxId> o campo transactionIdentification não deverá ser preenchido. O <TxId> deve conter até 25 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                  * QRDN - Será obrigatório seu preenchimento com o <TxId> do payload JSON do QR Code dinâmico. O <TxId> deve conter entre 26 e 35 caracteres alfanuméricos ([a-z|A-Z|0-9]).
+                  A detentora de conta deve validar se a condicionalidade e o formato do campo foram atendidas pela iniciadora de pagamento.
+              creationDateTime: 
+                type: 'string'
+                example: '2020-07-21T08:30:00Z'
+                description: Data e hora em que o recurso foi criado. Uma string com data e hora conforme especificação RFC-3339, sempre com a utilização de timezone UTC(UTC time format).
+                pattern: ^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])T(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)Z$
+              statusUpdateDateTime: 
+                type: 'string'
+                example: '2020-07-21T08:30:00Z'
+                description: Data e hora em que o recurso foi criado. Uma string com data e hora conforme especificação RFC-3339, sempre com a utilização de timezone UTC(UTC time format).
+                pattern: ^(\d{4})-(1[0-2]|0?[1-9])-(3[01]|[12][0-9]|0?[1-9])T(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)Z$
+              status: 
+                type: string
+                description: Estado atual da solicitação de liquidação de pagamentos
+                maxLength: 100
+                enum: 
+                  - RCVD
+                  - CANC
+                  - ACCP
+                  - ACPD
+                  - RJCT
+                  - ACSC
+                  - PDNG
+              rejectionReason: 
+                description: |
+                  Motivo da rejeição do pagamento. Informações complementares sobre o motivo do status [Restrição] Esse motivo deverá ser enviado quando o campo /data/status for igual a RJCT (REJECTED).
+                required:
+                  - 'code'
+                  - 'detail'
+                properties:
+                  code:
+                    type: 'string'
+                    example: 'SALDO_INSUFICIENTE'
+                    description: Define o código da razão pela qual o pagamento foi rejeitado
+                  detail:
+                    type: 'string'
+                    description: Contém informações adicionais ao pagamento rejeitado
+                    example: 'string'
+              cancellation: 
+                $ref: '#/components/schemas/PixPaymentCancellation'
+              payment:
+                required:
+                  - 'currency'
+                  - 'amount'
+                properties:
+                  currency:
+                    type: 'string'
+                    maxLength: 3
+                    pattern: ^([A-Z]{3})$
+                    example: BRL
+                    description: |
+                      Código da moeda nacional segundo modelo ISO-4217, ou seja, 'BRL'. 
+                      Todos os valores monetários informados estão representados com a moeda vigente do Brasil.
+                  amount:
+                    type: 'string'
+                    example: '100000.12'
+                    minLength: 4
+                    maxLength: 19
+                    pattern: ^((\d{1,16}\.\d{2}))$
+                    description: Valor da transação com 2 casas decimais.
+        links:
+          required:
+            - 'self'
+          properties:
+            self:
+              type: 'string'
+              example: 'https://api.banco.com.br/open-banking/api/v1/resource'
+          type: 'object'
+        meta:
+          required:
+            - 'requestDateTime'
+          properties:
+            requestDateTime:
+              type: 'string'
+              example: '2021-05-21T08:30:00Z'
+          type: 'object'            
     ResponseBodyBatchPixPayment:
       required:
         - 'data'
@@ -1699,6 +1841,21 @@ components:
           items:
             type: 'object'
             properties:
+              consentId:
+                pattern: ^urn:[a-zA-Z0-9][a-zA-Z0-9\-]{0,31}:[a-zA-Z0-9()+,\-.:=@;$_!*'%\/?#]+$
+                type: 'string'
+                example: 'urn:bancoex:C1DD33123'
+                maxLength: 256
+                description: |
+                  "Identificador único do consentimento criado para a iniciação de pagamento solicitada.
+                  Deverá ser um URN - Uniform Resource Name. Um URN, conforme definido na RFC8141 é um 
+                  Uniform Resource Identifier - URI - que é atribuído sob o URI scheme "urn" e um namespace 
+                  URN específico, com a intenção de que o URN seja um identificador de recurso persistente e 
+                  independente da localização. Considerando a string urn:bancoex:C1DD33123 como exemplo 
+                  para consentId temos:
+                  * o namespace(urn)
+                  * o identificador associado ao namespace da instituição transmissora (bancoex)
+                  * o identificador específico dentro do namespace (C1DD33123). Informações mais detalhadas sobre a construção de namespaces devem ser consultadas na RFC8141.
               paymentId:
                 type: 'string'
                 example: 'TXpRMU9UQTROMWhZV2xSU1FUazJSMDl'
@@ -1911,39 +2068,15 @@ components:
         links:
           required:
             - 'self'
-            - 'first'
-            - 'prev'
-            - 'next'
-            - 'last'
           properties:
             self:
-              type: 'string'
-              example: 'https://api.banco.com.br/open-banking/api/v1/resource'
-            first:
-              type: 'string'
-              example: 'https://api.banco.com.br/open-banking/api/v1/resource'
-            prev:
-              type: 'string'
-              example: 'https://api.banco.com.br/open-banking/api/v1/resource'
-            next:
-              type: 'string'
-              example: 'https://api.banco.com.br/open-banking/api/v1/resource'
-            last:
               type: 'string'
               example: 'https://api.banco.com.br/open-banking/api/v1/resource'
           type: 'object'
         meta:
           required:
-            - 'totalRecords'
-            - 'totalPages'
             - 'requestDateTime'
           properties:
-            totalRecords:
-              type: 'number'
-              example: 1
-            totalPages:
-              type: 'number'
-              example: 1
             requestDateTime:
               type: 'string'
               example: '2021-05-21T08:30:00Z'
@@ -1971,16 +2104,6 @@ components:
       schema:
         type: string
         pattern: '^urn:[a-zA-Z0-9][a-zA-Z0-9\-]{0,31}:[a-zA-Z0-9()+,\-.:=@;$_!*''%\/?#]+$'
-        minLength: 1
-        maxLength: 256
-    draftPaymentId:
-      name: draftPaymentId
-      in: path
-      description: |
-        O `draftPaymentId` é o identificador único do rascunho de pagamento e deverá ser um uuid.
-      required: true
-      schema:
-        type: string
         minLength: 1
         maxLength: 256
     pathPaymentId:
@@ -2534,3 +2657,15 @@ components:
         application/jwt:
           schema:
             $ref: '#/components/schemas/ResponseBodyBatchPixPayment'
+    ReducedBatchPixPaymentResponse:
+      description: Dados de iniciação de pagamento Pix obtidos com sucesso.
+      headers:
+        x-fapi-interaction-id:
+          description: |
+            Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.
+          schema:
+            $ref: '#/components/schemas/XFapiInteractionId'
+      content:
+        application/jwt:
+          schema:
+            $ref: '#/components/schemas/ReducedResponseBodyBatchPixPayment'
