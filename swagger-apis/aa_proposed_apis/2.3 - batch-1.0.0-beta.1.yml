@@ -330,7 +330,6 @@ paths:
       security:
         - OAuth2ClientCredentials:
             - payments
-
   '/consents/{consentId}/draft-payments':
     post:
       tags:
@@ -458,13 +457,12 @@ paths:
       security:
         - OAuth2ClientCredentials:
             - payments
-  '/consents/{consentId}/draft-payments/{draftPaymentId}':
     patch:
       tags:
         - Draft Payments
       summary: Atualizar um rascunho de pagamento de um consentimento ainda não autorizado
       operationId: batchPaymentsDeleteBatch
-      description: Método para alterar um rascunho de pagamento associado a um consentimento que ainda não foi autorizado. Esse endpoint só poderá ser utilizado enquanto o status do consentimento estiver em `AWAITING_CONFIGURATION`
+      description: Método para alterar um rascunho de pagamento associado a um consentimento que ainda não foi autorizado. Esse endpoint só poderá ser utilizado enquanto o status do consentimento estiver em `AWAITING_CONFIGURATION`. Apenas os rascunhos de pagamentos que serão alterados devem ser enviados, os demais permanecem como estão.
       parameters:
         - $ref: '#/components/parameters/Authorization'
         - $ref: '#/components/parameters/xCustomerUserAgent'
@@ -472,7 +470,6 @@ paths:
         - $ref: '#/components/parameters/xFapiCustomerIpAddress'
         - $ref: '#/components/parameters/xFapiInteractionIdUUID'
         - $ref: '#/components/parameters/pathConsentId'
-        - $ref: '#/components/parameters/draftPaymentId'
       requestBody:
         content:
           application/jwt:
@@ -591,6 +588,22 @@ paths:
             type: string
             format: uuid
             maxLength: 100
+        - $ref: "#/components/parameters/startDate"
+        - $ref: "#/components/parameters/endDate"
+        - name: status
+          in: query
+          description: Filtra os pagamentos que estejam no estado selecionado.
+          schema: 
+            type: string
+            maxLength: 100
+            enum: 
+              - RCVD
+              - CANC
+              - ACCP
+              - ACPD
+              - RJCT
+              - ACSC
+              - PDNG
       responses:
         '200':
           $ref: '#/components/responses/BatchPixPaymentResponse'
@@ -671,9 +684,14 @@ paths:
     patch:
       tags:
         - Payments
-      summary: Cancela uma ou mais solicitações de transações de pagamento.
+      summary: Cancela uma solicitação de transações de pagamento.
       operationId: automaticPaymentsGetPixbatchPaymentsPaymentId
-      description: Método para buscar informações sobre um pagamento.
+      description: | 
+        Esse endpoint deve ser usado para cancelar as transações que estejam retidas para análise (PDNG). Caso a requisição seja bem sucedida, a transação vai para a situação CANC.  
+        Caso o status do pagamento seja diferente de PDNG ou alguma outra regra de negócio impeça o cancelamento, a requisição PATCH retorna 
+        HTTP Status 422 com o code PAGAMENTO_NAO_PERMITE_CANCELAMENTO. 
+        
+        Caso receba um 422, a iniciadora deve fazer uma requisição GET no pagamento para verificar a situação atual dele, bem como detalhes associados.
       parameters:
         - $ref: '#/components/parameters/Authorization'
         - $ref: '#/components/parameters/xCustomerUserAgent'
@@ -1936,25 +1954,6 @@ components:
       maxLength: 100
       description: 'Um UUID [RFC4122](https://tools.ietf.org/html/rfc4122) usado como um ID de correlação. A detentora deve obrigatoriamente retornar o campo com o mesmo valor recebido da iniciadora.'
   parameters:
-    consentId:
-      name: consentId
-      in: query
-      description: |
-        O `consentId` é o identificador único do consentimento e deverá ser um URN - Uniform Resource Name.  
-        Um URN, conforme definido na [RFC8141](https://tools.ietf.org/html/rfc8141) é um Uniform Resource 
-        Identifier - URI - que é atribuído sob o URI scheme "urn" e um namespace URN específico, com a intenção de que o URN 
-        seja um identificador de recurso persistente e independe da localização.  
-        Considerando a string urn:bancoex:C1DD33123 como exemplo para `consentId` temos:
-        - o namespace(urn)
-        - o identificador associado ao namespace da instituição detentora (bancoex).
-        - o identificador específico dentro do namespace (C1DD33123).  
-        Informações mais detalhadas sobre a construção de namespaces devem ser consultadas na [RFC8141](https://tools.ietf.org/html/rfc8141).
-      required: true
-      schema:
-        type: string
-        pattern: '^urn:[a-zA-Z0-9][a-zA-Z0-9\-]{0,31}:[a-zA-Z0-9()+,\-.:=@;$_!*''%\/?#]+$'
-        minLength: 1
-        maxLength: 256
     pathConsentId:
       name: consentId
       in: path
@@ -1978,21 +1977,10 @@ components:
       name: draftPaymentId
       in: path
       description: |
-        O `draftPaymentId` é o identificador único da intenção de pagamento e deverá ser um uuid.
+        O `draftPaymentId` é o identificador único do rascunho de pagamento e deverá ser um uuid.
       required: true
       schema:
         type: string
-        minLength: 1
-        maxLength: 256
-    creditorId:
-      name: creditorId
-      in: path
-      description: |
-        O `creditorId` é o identificador único do recebedor e deverá ser um uuid.
-      required: true
-      schema:
-        type: string
-        format: uuid
         minLength: 1
         maxLength: 256
     pathPaymentId:
@@ -2008,7 +1996,7 @@ components:
     startDate:
       name: startDate
       in: query
-      description: Data inicial de corte da ocorrência do pagamento ligada ao consentimento de longa duração.
+      description: Data inicial de corte da ocorrência do pagamento ligada ao consentimento.
       required: false
       schema:
         type: string
@@ -2018,7 +2006,7 @@ components:
     endDate:
       name: endDate
       in: query
-      description: Data final de corte para recuperação da ocorrência do pagamento ligada ao consentimento de longa duração.
+      description: Data final de corte para recuperação da ocorrência do pagamento ligada ao consentimento.
       required: false
       schema:
         type: string
