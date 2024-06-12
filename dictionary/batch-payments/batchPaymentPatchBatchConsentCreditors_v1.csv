@@ -1,0 +1,12 @@
+Xpath,Nome,Definição,Tipo de Dado,Tamanho,Mandatoriedade,Formato,Domínio,Mínimo de Ocorrências,Máximo de Ocorrências,Restrições,Nulidade,Tipo de Dado Json,Exemplo,Tamanho mínimo
+/data,data,,,,Obrigatório,,,1,1,,Não permitido,,,
+,,,,,,,,,,,,,,
+/data/status,status,Estado para qual o recurso deve ser movido,Texto,,Obrigatório,,"REJECTED, AWAITING_AUTHORISATION",1,1,,Não permitido,,REJECTED,
+,,,,,,,,,,,,,,
+/data/rejection,rejection,Motivos de rejeição do consentimento.,Objeto,,,,,0,1,[Restrição] Preenchimento obrigatório quando /data/status for enviado igual a REJECTED,Permitido,,,
+/data/rejection/rejectedBy,rejectedBy,Indica qual parte realizou a solicitação de cancelamento,Texto,,Obrigatório,,"USUARIO, INICIADORA, DETENTORA",1,1,,,,INICIADORA,
+/data/rejection/rejectedFrom,rejectedFrom,,Texto,,Obrigatório,,,1,1,,,,DETENTORA,
+/data/rejection/rejectedAt,rejectedAt,Data e hora em que ocorreu a rejeição do consentimento.,Texto($date-time),,Obrigatório,,,1,1,,,,2021-05-21T08:30:00Z,
+/data/rejection/reason,reason,,Objeto,,Obrigatório,,,1,1,,Não permitido,,,
+/data/rejection/reason/code,code,Código descritivo do motivo de rejeição do consentimento,Texto,,Obrigatório,,,1,1,,Não permitido,,VALOR_ACIMA_LIMITE,
+/data/rejection/reason/detail,detail,Detalhes do erro representado pelo código,Texto,,Obrigatório,,,1,1,,Não permitido,,O usuário rejeitou a autorização do consentimento,
