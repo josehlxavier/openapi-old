@@ -1,0 +1,26 @@
+Xpath,Nome,Definição,Tipo de Dado,Tamanho,Mandatoriedade,Formato,Domínio,Mínimo de Ocorrências,Máximo de Ocorrências,Restrições,Nulidade,Tipo de Dado Json,Exemplo,Tamanho mínimo
+/data,data,,Objeto,,Obrigatório,,,1,1,,Não permitido,,,
+/data/loggedUser,loggedUser,Usuário (pessoa natural) que encontra-se logado na instituição Iniciadora de Pagamento.,Objeto,,Obrigatório,,,1,1,,Não permitido,,,
+/data/loggedUser/document,document,,Objeto,,,,,,,,,,,
+/data/loggedUser/document/identification,identification,Número do documento de identificação oficial do usuário.,Texto,11,Obrigatório,^\d{11}$,,1,1,,Não permitido,,11111111111,
+/data/loggedUser/document/rel,rel,Tipo do documento de identificação oficial do usuário.,Texto,3,Obrigatório,^[A-Z]{3}$,,1,1,,Não permitido,,CPF,
+,,,,,,,,,,,,,,
+/data/businessEntity,businessEntity,Usuário (pessoa jurídica) que encontra-se logado na instituição Iniciadora de Pagamento. ,Objeto,,,,,0,1,[Restrição] Preenchimento obrigatório se usuário logado na instituição Iniciadora de Pagamento for um CNPJ (pessoa jurídica).,Permitido,,,
+/data/businessEntity/document,document,,Objeto,,Obrigatório,,,1,1,,Não permitido,,,
+/data/businessEntity/document/identification,identification,Número do documento de identificação oficial do titular pessoa jurídica.,Texto,14,Obrigatório,^\d{14}$,,1,1,,Não permitido,,11111111111111,
+/data/businessEntity/document/rel,rel,Tipo do documento de identificação oficial do titular pessoa jurídica.,Texto,4,Obrigatório,^[A-Z]{4}$,,1,1,,Não permitido,,CNPJ,
+,,,,,,,,,,,,,,
+/data/additionalInformation,additionalInformation,Deve ser preenchido sempre que o usuário pagador inserir alguma informação adicional no consentimento,Texto,140,,[\w\W\s]*,,0,1,,Permitido,,Pagamentos de Novembro,
+,,,,,,,,,,,,,,
+/data/batchInformation,atchInformation,,Objeto,,Obrigatório,,,1,1,,Não permitido,,,
+/data/batchInformation/totalPayments,totalPayments,Quantidade de pagamentos que será enviado pelo iniciador de pagamentos,Número,200,Obrigatório,,,1,1,,Não permitido,,200,
+/data/batchInformation/totalAmount,totalAmount,Valor total da soma de todos os valores que serão enviados para os pagamentos informados pelo inciador de pagamentos,Texto,19,Obrigatório,"^((\d{1,16}\.\d{2}))$",,1,1,,Não permitido,,100000.12,4
+,,,,,,,,,,,,,,
+/data/debtorAccount,debtorAccount,"Objeto que contém a identificação da conta de origem do pagador. As informações quanto à conta de origem do pagador poderão ser trazidas no consentimento para a detentora, caso a iniciadora tenha coletado essas informações do cliente. Do contrário, será coletada na detentora e trazida para a iniciadora como resposta à criação do pagamento.",Objeto,,,,,0,1,,Permitido,,,
+/data/debtorAccount/ispb,ispb,Deve ser preenchido com o ISPB (Identificador do Sistema de Pagamentos Brasileiros) do participante do SPI (Sistema de pagamentos instantâneos) somente com números.,Texto,8,Obrigatório,^[0-9]{8}$,,1,1,,Não permitido,,12345678,8
+/data/debtorAccount/issuer,issuer,"Código da Agência emissora da conta sem dígito. (Agência é a dependência destinada ao atendimento aos clientes, ao público em geral e aos associados de cooperativas de crédito, no exercício de atividades da instituição, não podendo ser móvel ou transitória).",Texto,4,,"^[0-9]{1,4}$",,0,1,[Restrição] Preenchimento obrigatório para os seguintes tipos de conta: CACC (CONTA_DEPOSITO_A_VISTA) e SVGS (CONTA_POUPANCA).,Permitido,,1774,1
+/data/debtorAccount/number,number,"Deve ser preenchido com o número da conta transacional do usuário pagador, com dígito verificador (se este existir), se houver valor alfanumérico, este deve ser convertido para 0.",Texto,20,Obrigatório,"^[0-9]{1,20}$",,1,1,,Não permitido,,1234567890,1
+/data/debtorAccount/accountType,accountType,"Tipos de contas usadas para pagamento. Modalidades tradicionais previstas pela Resolução 4.753, não contemplando contas vinculadas, conta de domiciliados no exterior, contas em moedas estrangeiras e conta correspondente moeda eletrônica. Segue descrição de cada valor do ENUM.:
+CACC - Current - Conta Corrente.
+SVGS - Savings - Conta de Poupança.
+TRAN - TransactingAccount - Conta de Pagamento pré-paga.",Texto,,Obrigatório,,"CACC, SVGS, TRAN",1,1,,Não permitido,,CACC,
