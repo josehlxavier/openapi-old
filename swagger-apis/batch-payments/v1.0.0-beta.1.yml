@@ -1075,6 +1075,65 @@ components:
                       type: string
                       example: 'O usuário rejeitou a autorização do consentimento'
                       description: 'Detalhes do erro representado pelo código'
+            revocation:
+              type: object
+              description: |
+                Objeto contendo as informações de revogação dos consentimentos.
+
+                [Restrição] Campo de preenchimento obrigatório caso status do consentimento igual a "REVOKED".
+              required:
+                - revokedBy
+                - revokedFrom
+              properties:
+                revokedBy:
+                    type: string
+                    enum:
+                      - INICIADORA
+                      - USUARIO
+                      - DETENTORA
+                    example: INICIADORA
+                    description: |
+                      Quem iniciou a solicitação de revogação  
+                      - INICIADORA
+                      - USUARIO
+                      - DETENTORA
+                revokedFrom:
+                  type: string
+                  enum:
+                    - INICIADORA
+                    - DETENTORA
+                  example: DETENTORA
+                  description: |
+                    Canal onde iniciou-se o processo de revogação   
+                    - INICIADORA  
+                    - DETENTORA  
+                reason:
+                  type: object
+                  description: |
+                    Informações sobre o motivo da revogação
+                  required:
+                    - code
+                    - detail
+                  properties:
+                    code:
+                      type: string
+                      enum:
+                        - NAO_INFORMADO
+                        - REVOGADO_USUARIO
+                        - REVOGADO_RECEBEDOR
+                      example: REVOGADO_RECEBEDOR
+                      description: |
+                        Código indicador do motivo da revogação
+                    detail:
+                      type: string
+                      pattern: '[\w\W\s]*'
+                      maxLength: 2048
+                      description: |
+                        Detalhe sobre o motivo de revogação indicado no campo `/data/revocation/reason/code`.
+                        - NAO_INFORMADO: Não informada pela detentora de conta;
+                        - REVOGADO_USUARIO: O usuário pagador revogou a recorrência do consentimento;
+                        - REVOGADO_RECEBEDOR: O usuário recebedor revogou a recorrência do consentimento.
+                      example: O usuário rejeitou a autorização do consentimento  
     CreateConsent:
       type: object
       required:
@@ -1377,6 +1436,65 @@ components:
                       type: string
                       example: 'O usuário rejeitou a autorização do consentimento'
                   type: object
+            revocation:
+              type: object
+              description: |
+                Objeto contendo as informações de revogação dos consentimentos.
+
+                [Restrição] Campo de preenchimento obrigatório caso status do consentimento igual a "REVOKED".
+              required:
+                - revokedBy
+                - revokedFrom
+              properties:
+                revokedBy:
+                    type: string
+                    enum:
+                      - INICIADORA
+                      - USUARIO
+                      - DETENTORA
+                    example: INICIADORA
+                    description: |
+                      Quem iniciou a solicitação de revogação  
+                      - INICIADORA
+                      - USUARIO
+                      - DETENTORA
+                revokedFrom:
+                  type: string
+                  enum:
+                    - INICIADORA
+                    - DETENTORA
+                  example: DETENTORA
+                  description: |
+                    Canal onde iniciou-se o processo de revogação   
+                    - INICIADORA  
+                    - DETENTORA  
+                reason:
+                  type: object
+                  description: |
+                    Informações sobre o motivo da revogação
+                  required:
+                    - code
+                    - detail
+                  properties:
+                    code:
+                      type: string
+                      enum:
+                        - NAO_INFORMADO
+                        - REVOGADO_USUARIO
+                        - REVOGADO_RECEBEDOR
+                      example: REVOGADO_RECEBEDOR
+                      description: |
+                        Código indicador do motivo da revogação
+                    detail:
+                      type: string
+                      pattern: '[\w\W\s]*'
+                      maxLength: 2048
+                      description: |
+                        Detalhe sobre o motivo de revogação indicado no campo `/data/revocation/reason/code`.
+                        - NAO_INFORMADO: Não informada pela detentora de conta;
+                        - REVOGADO_USUARIO: O usuário pagador revogou a recorrência do consentimento;
+                        - REVOGADO_RECEBEDOR: O usuário recebedor revogou a recorrência do consentimento.
+                      example: O usuário rejeitou a autorização do consentimento             
             debtorAccount:
               type: object
               description: |
