@@ -27,7 +27,7 @@ def extract_data(data):     # Obter os dados de um objeto JSON
         if i['key'] == 'CustomColumn155sr': # "CustomColumn155sr" = "Usuário Solicitante"
             linha_csv.append(i['valueCaption'].replace('\\t',''))
         if i['key'] == 'insert_time': # Data de criação
-            linha_csv.append(str(i['valueCaption']).encode('utf-8'))
+            linha_csv.append(str(i['valueCaption']))
         if i['key'] == 'title': #Título da SR
             linha_csv.append(i['valueCaption'])
         if i['key'] == 'description': #Descrição da SR
@@ -68,7 +68,7 @@ if __name__ == '__main__':
                                      -u, --user, E-mail de login do Service Desk \n \
                                      -p, --password, Senha de acesso ao Service Desk \n \
                                      \nParametros opcionais: \n \
-                                     -fo, --file_output, Nome do arquivo que deve ser gerado. Caso nao fornecido, será utilizada a data/hora atual.' )
+                                     -fo, --file_output, Nome do arquivo que deve ser gerado. Caso nao fornecido, será utilizada a data/hora atual.')
     parser.add_argument('-t', '--tickets', help='Lista de tickets que devem ser buscadas', type=str)
     parser.add_argument('-u', '--user', help='Email utilizado para login no Service Desk', type=str)
     parser.add_argument('-p', '--password', help='Senha de acesso ao Service Desk', action='store_true', dest='password' )
@@ -113,11 +113,3 @@ if __name__ == '__main__':
                 file.writelines(extract_data(response_leitura.text))
                 file.write('\n')
             time.sleep(1)
-            
-
-
-       
-
-
-
-
